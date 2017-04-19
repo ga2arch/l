@@ -1,6 +1,7 @@
 #define DO(n,x)	{J i=0,_i=(n);for(;i<_i;++i){x;}}
 #define O printf
 #define OS(s) DO(s->n, O("%c",kG(s)[i]))O("\n");
+#define Os(s) DO(s->n, O("%c",kG(s)[i]));
 #define R return
 #define Z static
 #define P(x,y) {if(x)R(y);}
@@ -44,6 +45,7 @@ typedef void V;
 // accessors
 #define K1(f) K f(K x)
 #define K2(f) K f(K x,K y)
+#define K3(f) K f(K x,K y,K z)
 #define TX(T,x) (*(T*)((G*)(x)+8))
 #define xr x->r
 #define xt x->t
@@ -98,13 +100,14 @@ typedef struct k0{
 #define CHAR    (I)16L
 #define INT     (I)32L
 #define MARK    (I)64L
+#define ASGN    (I)128L
 
-#define ASGN    '\200'
-#define SCOLON  '\201'
-#define PLUS    '+'
 #define VNA     (VERB+NOUN+ADV)
-#define EDGE    (MARK)
+#define EDGE    (MARK+ASGN)
+
+#define CPLUS    '\200'
 
 typedef struct {C v; K(*Kf);} VB;
-typedef struct {I c[4]; K(*f)(K,K); I b,e;} PT;
+typedef struct {I c[4]; K(*f)(K,K,K); I b,e;} PT;
 typedef struct {I t; K e;} SQ;
+typedef struct {K(*f1)(K); K(*f2)(K,K); I t; I mr; I lr; I rr; C id;} PV;
