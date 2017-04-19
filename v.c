@@ -25,7 +25,7 @@ Z ST state[3][3]={
 PV pst[256]={};
 I ctype(C c) {
   P(c==' '||c=='\t', CB)
-  P(c==';'||c==':'||c=='+',  CO)
+  P(c==';'||c==':'||c=='+'||c=='-',  CO)
   R CA;
 }
 
@@ -68,7 +68,13 @@ K2(plus) {I a=0,b=0;
   $(y->t==KC, b=atoi((S)kG(y)), b=y->i);
   I sum=a+b;O("sum = %i\n", sum);R ki(sum);
 }
-K3(dyad) {PV* v=&pst[y->g]; R (*v->f2)(x,z);}
+K2(minus) {I a=0,b=0;
+  $(x->t==KC, a=atoi((S)xG), a=x->i);
+  $(y->t==KC, b=atoi((S)kG(y)), b=y->i);
+  I sub=a-b;O("sub = %i\n", sub);R ki(sub);
+}
+
+K3(dyad) {O("dyad: %c\n",y->g);PV* v=&pst[y->g]; R (*v->f2)(x,z);}
 
 I qn(S tk, J n) {
   DO(n, P(tk[i]<'0'||(tk[i]>'9'&&tk[i]<'A')||(tk[i]>'Z'&&tk[i]<'a')||tk[i]>'z',0));
@@ -112,13 +118,15 @@ V enqueue(K s, K w) {
     if (tk[0]==':')type=ASGN;
     if (tk[0]==';')type=MARK;
     if (tk[0]=='+')type=CPLUS;
+    if (tk[0]=='-')type=CMINUS;
 
     O("\n");
     DO(len, O("%c", tk[i]););
     O(" - %i", type);O("\n");
 
     stack[top].t=type, stack[top].e=ksn(tk,len), top+=1;
-    if(type==CPLUS) {PV*v=&pst[(G) type]; stack[top-1].t=v->t, stack[top-1].e=kc(v->id);}
+    if(type>='\200'&&type<'\300')
+      {PV*v=&pst[(G) type]; stack[top-1].t=v->t, stack[top-1].e=kc(v->id);}
 
     O("top: %i", top);O("\n");
     DO(top, O("%i - ", stack[i].t))O("\n");
@@ -146,8 +154,9 @@ V enqueue(K s, K w) {
 
 int main() {
   pdef(CPLUS,VERB,0,plus,0,0,0);
+  pdef(CMINUS,VERB,0,minus,0,0,0);
 
-  K x=ks("y:1;x:2+10+10");
+  K x=ks("z:2-2;y:1;x:2+10+10");
 
   K w=wordil(x);
   O("%lld\n", w->n);

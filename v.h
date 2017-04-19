@@ -106,6 +106,7 @@ typedef struct k0{
 #define EDGE    (MARK+ASGN)
 
 #define CPLUS    '\200'
+#define CMINUS   '\201'
 
 typedef struct {C v; K(*Kf);} VB;
 typedef struct {I c[4]; K(*f)(K,K,K); I b,e;} PT;
