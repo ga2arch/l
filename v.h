@@ -95,18 +95,20 @@ typedef struct k0{
 #define ANY     -1L
 #define VERB    (I)1L
 #define ADV     (I)2L
-#define NOUN    (I)4L
 #define NAME    (I)8L
 #define CHAR    (I)16L
 #define INT     (I)32L
 #define MARK    (I)64L
-#define ASGN    (I)128L
+
 
 #define VNA     (VERB+NOUN+ADV)
 #define EDGE    (MARK+ASGN)
+#define NUMERIC (INT)
+#define NOUN    (NUMERIC+CHAR)
 
-#define CPLUS    '\200'
-#define CMINUS   '\201'
+#define ASGN    '\200'
+#define CPLUS    '+'
+#define CMINUS   '-'
 
 typedef struct {C v; K(*Kf);} VB;
 typedef struct {I c[4]; K(*f)(K,K,K); I b,e;} PT;

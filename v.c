@@ -2,33 +2,44 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+
 #define SB         0    /* blank                           */
 #define SA         1    /* alphanumeric                    */
 #define SO         2    /* other                           */
+#define S9         3    /* digit                           */
 
 #define EI         1    /* emit (b,i-1); b=.i              */
 #define EN         2    /* b=.i                            */
 
-#define CB         0    /* space or tab                    */
-#define CA         1    /* letter                          */
-#define CO         2    /* other                           */
+#define CO         0    /* other                           */
+#define CB         1    /* space or tab                    */
+#define CA         2    /* letter                          */
+#define C9         3    /* digit */
+#define CC         4    /* colon */
+#define CQ         5    /* quote */
 
 typedef struct {C n,e;} ST;
 
-Z ST state[3][3]={
-  /*SB */ {{SB,0 },{SA,EN},{SO,EN}},
-  /*SA */ {{SB,EI},{SA,0 },{SO,EI}},
-  /*SO */ {{SB,EI},{SA,EI},{SO,EN}}
+Z ST state[4][4]={
+  /*SB */ {{SB,EN},{SB,0 },{SA,EN},{S9,EN}},
+  /*SA */ {{SO,EI},{SB,EI},{SA,0 },{S9,EI}},
+  /*SO */ {{SO,0 },{SB,EI},{SA,EI},{S9,EI}},
+  /*S9 */ {{SO,EI},{SB,EI},{SA,EI},{S9,0}},
 };
-/*          CB      CA     CO     */
+/*          CO      CB      CA      C9   */
+
+C ctype[256]={
+ 0,  0,  0,  0,  0,  0,  0,  0,  0, CB,  0,  0,  0,  0,  0,  0, /* 0                  */
+ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, /* 1                  */
+CB,  0,  0,  0,  0,  0,  0, CQ,  0,  0,  0,  0,  0,  0,  0,  0, /* 2  !"#$%&'()*+,-./ */
+C9, C9, C9, C9, C9, C9, C9, C9, C9, C9, CO,  0,  0,  0,  0,  0, /* 3 0123456789:;<=>? */
+ 0, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, /* 4 @ABCDEFGHIJKLMNO */
+CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA,  0,  0,  0,  0, C9, /* 5 PQRSTUVWXYZ[\]^_ */
+ 0, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, /* 6 `abcdefghijklmno */
+CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA,  0,  0,  0,  0,  0, /* 7 pqrstuvwxyz{|}~  */
+};
 
 PV pst[256]={};
-I ctype(C c) {
-  P(c==' '||c=='\t', CB)
-  P(c==';'||c==':'||c=='+'||c=='-',  CO)
-  R CA;
-}
-
 ZV* ma(J s) {V* p=malloc(s);memset(p,0,s);R p;}
 ZK ga(J s) {R ma(sizeof(struct k0)-1+s);}
 ZK ktn(I t, J n) {I s=0;K x;U(t>0&&t<10);
@@ -53,34 +64,34 @@ ZK ksn(S s, I n) {K x=ktn(KC,n);strncpy((S)xG,s,n);R x;}
 
 K1(wordil) {I i=0,s=0,e=0,b=0,wi=0;ST st;K w=ktn(KI,xn*2);
   for(;i<xn;i++) {
-    O("i:%i - state: %i - effect:%i - b:%i - wi:%i\n", i,s,e,b,wi);
-    st=state[s][ctype(xG[i])], s=st.n, e=st.e;
+    st=state[s][ctype[(I)xG[i]]], s=st.n, e=st.e;
     if (e==1) {kI(w)[wi]=b, kI(w)[wi+1]=i-1, b=i, wi+=2;}
     else if (e==2) {b=i;}
+    O("i:%i - state: %i - effect:%i - b:%i - wi:%i - c:%c - %i\n", i,s,e,b,wi,xG[i],ctype[xG[i]]);
   }
   kI(w)[wi]=b, kI(w)[wi+1]=i-1, w->n=wi+2;
   R w;
 }
 
 K3(is)   {O("is\n");Os(x);O(" is %i\n", z->i);R ki(0);}
-K2(plus) {I a=0,b=0;
-  $(x->t==KC, a=atoi((S)xG), a=x->i);
-  $(y->t==KC, b=atoi((S)kG(y)), b=y->i);
-  I sum=a+b;O("sum = %i\n", sum);R ki(sum);
-}
-K2(minus) {I a=0,b=0;
-  $(x->t==KC, a=atoi((S)xG), a=x->i);
-  $(y->t==KC, b=atoi((S)kG(y)), b=y->i);
-  I sub=a-b;O("sub = %i\n", sub);R ki(sub);
-}
-
+K2(plus) {I a=0,b=0;I sum=x->i+y->i;O("sum = %i\n", sum);R ki(sum);}
+K2(minus) {I a=0,b=0;I sub=x->i-y->i;O("sub = %i\n", sub);R ki(sub);}
 K3(dyad) {O("dyad: %c\n",y->g);PV* v=&pst[y->g]; R (*v->f2)(x,z);}
 
+Z C spell[]={
+  ':',  ';',  '+', '-', ASGN, MARK, CPLUS, CMINUS
+};
+C spellin(C c) {DO(4,P(spell[i]==c,spell[i+4]));R 0;}
+I ds(G id) {R pst[id].t;}
 I qn(S tk, J n) {
   DO(n, P(tk[i]<'0'||(tk[i]>'9'&&tk[i]<'A')||(tk[i]>'Z'&&tk[i]<'a')||tk[i]>'z',0));
   R NOUN;
 }
-I qv(S tk) {R 0;}
+I qv(C c) {I s;I ct;
+  s=spellin(c);
+  U(ct=ds(s));
+  R ct;
+}
 
 ZI pdef(C id, I t, K(*f1)(), K(*f2)(), I mr, I lr, I rr) {
   PV* v=&pst[(G)id];
@@ -94,12 +105,6 @@ ZI pdef(C id, I t, K(*f1)(), K(*f2)(), I mr, I lr, I rr) {
   R 1;
 }
 
-Z C spell[2][3]={
-  ':',  ';',  '+',
-  ASGN, MARK, CPLUS
-};
-I spellin(C c) {DO(sizeof(spell), P(spell[0][i]==c,spell[1][i]));R 0;}
-
 PT cases[] = {
   NOUN+NAME, ASGN,       VNA,  ANY,  is,   0, 2,
   MARK,      NOUN+NAME,  ASGN, VNA,  is,   1, 3,
@@ -111,25 +116,27 @@ V enqueue(K s, K w) {
   I top=0;SQ stack[8000]={};
 
   for(I i=w->n-1;i>=0;i-=2) {
-    S tk; J len=0; I type=0; K r;
+    S tk; J len=0; I ct=-1; K r;
     tk=(S)kC(s)+kI(w)[i-1], len=kI(w)[i]-kI(w)[i-1]+1;
-    (type=qn(tk,len))?type:(type=qv(tk))?type:(type=spellin(tk[0]))?type:(type=0);
 
-    if (tk[0]==':')type=ASGN;
-    if (tk[0]==';')type=MARK;
-    if (tk[0]=='+')type=CPLUS;
-    if (tk[0]=='-')type=CMINUS;
+    ct=ctype[tk[0]];
+    O("\nt: %i", ct);
+
+    SW(ct) {
+      CS(CO, {if((ct=qv(tk[0]))==0)ct=spellin(tk[0]);r=kc(tk[0]);})
+      CS(CA, (ct=CHAR,    r=ksn(tk, len)))
+      CS(C9, (ct=NUMERIC, r=ki(atoi(tk))))
+      CD:    (ct=NOUN,    r=ksn(tk, len));
+    }
 
     O("\n");
-    DO(len, O("%c", tk[i]););
-    O(" - %i", type);O("\n");
+    DO(len, O("<%c,%i>", tk[i], r->i););
+    O(" - %i", ct);O("\n");
 
-    stack[top].t=type, stack[top].e=ksn(tk,len), top+=1;
-    if(type>='\200'&&type<'\300')
-      {PV*v=&pst[(G) type]; stack[top-1].t=v->t, stack[top-1].e=kc(v->id);}
+    stack[top].t=ct, stack[top].e=r, top+=1;
 
     O("top: %i", top);O("\n");
-    DO(top, O("%i - ", stack[i].t))O("\n");
+    DO(top, O("<%i,%i> - ", stack[i].t, stack[i].e->i))O("\n");
     if(top<4)continue;
 
     for(I j=0;j<sizeof(cases)/sizeof(cases[0]);j++) {I cond=1;I start;
@@ -142,7 +149,7 @@ V enqueue(K s, K w) {
 
         stack[start+3-b].t=NOUN;
         stack[start+3-b].e=r;
-        memmove(&stack[start+3-b+1], &stack[start+3-a+1], top-(start+3-a+1));
+        memmove(&stack[start+3-b+1], &stack[start+3-a+1], (4-start+a)*sizeof(stack[0]));
         top-=b-a;
         break;
       }
@@ -156,12 +163,11 @@ int main() {
   pdef(CPLUS,VERB,0,plus,0,0,0);
   pdef(CMINUS,VERB,0,minus,0,0,0);
 
-  K x=ks("z:2-2;y:1;x:2+10+10");
+  K x=ks("x:10-4+2-3;y:1;");
 
   K w=wordil(x);
   O("%lld\n", w->n);
   DO(w->n, O("%i",kI(w)[i]));
   O("\n");
   enqueue(x,w);
-
 }
