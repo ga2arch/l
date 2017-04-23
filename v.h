@@ -100,7 +100,6 @@ typedef struct k0{
 #define INT     (I)32L
 #define MARK    (I)64L
 
-
 #define VNA     (VERB+NOUN+ADV)
 #define EDGE    (MARK+ASGN)
 #define NUMERIC (INT)
