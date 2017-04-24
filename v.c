@@ -73,7 +73,7 @@ ZK kc(C c) {K x=ga(0);x->t=-KC, x->g=(G)c;R x;}
 ZK ki(I i) {K x=ga(0);x->t=-KI, x->i=i;R x;}
 ZK ksn(S s, I n) {K x=ktn(KC,n);strncpy((S)xG,s,n);R x;}
 V js(K* x, S s) {I n=strlen(s);*x=rga(*x, n);strncpy((S)&kG(*x)[(*x)->n],s,n);(*x)->n+=n;}
-V jk(K* x, K y) {I s=sizeof(G*);*x=rga(*x,(*x)->n+s);memcpy(&kG(*x)[(*x)->n],(G*)&y,s);(*x)->n+=1;}
+V jk(K* x, K y) {I s=sizeof(G*);*x=rga(*x,(*x)->n+1*s);memcpy(&kG(*x)[(*x)->n*s],(G*)&y,s);(*x)->n+=1;}
 
 K1(wordil) {I i=0,s=0,e=0,b=0,wi=0;ST st;K w=ktn(KI,xn*2);
   for(;i<xn;i++) {
@@ -185,7 +185,10 @@ int main() {
 
   K y=ktn(0,0);
   K s=ks("ciao");
+  K s1=ks("kek");
   jk(&y, s);
+  jk(&y, s1);
 
-  OS((K)(*((K*)((G*)kG(y)))));
+  OS(kK(y)[0]);
+  OS(kK(y)[1]);
 }

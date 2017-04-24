@@ -46,7 +46,7 @@ typedef void V;
 #define K1(f) K f(K x)
 #define K2(f) K f(K x,K y)
 #define K3(f) K f(K x,K y,K z)
-#define TX(T,x) (*(T*)((G*)(x)+8))a
+#define TX(T,x) (*(T*)((G*)(x)+8))
 #define xr x->r
 #define xt x->t
 #define xu x->u
