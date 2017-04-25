@@ -35,6 +35,7 @@ ZK ki(I i) {K x=ka(-KI); x->i=i;R x;}
 ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n), xt=t, xn=n;R x;};
 ZK kpn(S s, I n) {K x=ktn(KC,n);strncpy((S)xG,s,n);R x;}
 ZK kp(S s) {R kpn(s,strlen(s));}
+ZK ja(K* x, V* y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],y,sz((*x)->t));(*x)->n++;R *x;}
 ZK js(K* x, S s) {I n=strlen(s);*x=rga(*x,n);strncpy((S)&kG(*x)[(*x)->n],s,n);(*x)->n+=n;R *x;}
 ZK jk(K* x, K y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],&y,sizeof(G*));(*x)->n++;R *x;}
 ZK jv(K* x, K y) {U((*x)->t==y->t);
@@ -207,7 +208,13 @@ int main() {
   jv(&y,z);
   jk(&y,z);
 
-  OS(kK(y)[0]);
+  O("%s\n",kS(kK(y)[0]));
   OS(kK(z)[0]);
   OS(kK(kK(y)[3])[0]);
+
+  K j=ktn(KI, 0);
+  int i=5;
+  ja(&j, &i);
+
+  O("- %i",kI(j)[0]);
 }
