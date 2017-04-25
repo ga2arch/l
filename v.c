@@ -35,9 +35,10 @@ ZK ki(I i) {K x=ka(-KI); x->i=i;R x;}
 ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n), xt=t, xn=n;R x;};
 ZK kpn(S s, I n) {K x=ktn(KC,n);strncpy((S)xG,s,n);R x;}
 ZK kp(S s) {R kpn(s,strlen(s));}
-ZV js(K* x, S s) {I n=strlen(s);*x=rga(*x,n);strncpy((S)&kG(*x)[(*x)->n],s,n);(*x)->n+=n;}
-ZV jk(K* x, K y) {*x=rga(*x,++(*x)->n);memcpy(&kK(*x)[(*x)->n-1],&y,sizeof(G*));}
-ZV jv(K* x, K y) {I n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(*x)[n],&kG(y),y->n*sz(y->t));}
+ZK js(K* x, S s) {I n=strlen(s);*x=rga(*x,n);strncpy((S)&kG(*x)[(*x)->n],s,n);(*x)->n+=n;R *x;}
+ZK jk(K* x, K y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],&y,sizeof(G*));(*x)->n++;R *x;}
+ZK jv(K* x, K y) {U((*x)->t==y->t);
+  I n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(*x)[n],&kG(y),y->n*sz(y->t));(*x)->n=n+y->n;R *x;}
 
 //tables
 
@@ -201,8 +202,12 @@ int main() {
 
   jk(&y, kp("ciao"));
   jk(&z, kp("kek"));
+  jk(&z, kp("lol"));
 
   jv(&y,z);
+  jk(&y,z);
 
-  OS(kK(z)[0])
+  OS(kK(y)[0]);
+  OS(kK(z)[0]);
+  OS(kK(kK(y)[3])[0]);
 }
