@@ -26,7 +26,8 @@ typedef char*S,C;
 typedef unsigned char G;
 typedef short H;
 typedef int I;
-typedef unsigned __int128 J;
+typedef long long J;
+typedef unsigned __int128 L;
 typedef float E;
 typedef double F;
 typedef void V;
@@ -85,7 +86,8 @@ typedef void V;
 // type
 typedef struct k0{
   signed char t;
-  union{G g;H h;I i;J j;E e;F f;S s;struct k0*k;struct{J n;G G0[1];};};
+  I r;
+  union{G g;H h;I i;J j;E e;F f;S s;struct k0*k;struct{L n;G G0[1];};};
 }*K;
 /* t: id of the type
    n: number of atoms */

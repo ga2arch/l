@@ -15,22 +15,32 @@ ZI sz(I t) {
       CS(KF, R sizeof(F))
       CS(KC, R sizeof(C))
       CS(KS, R sizeof(S))
-      CS(0,  R sizeof(struct k0))
+      CS(0,  R sizeof(G*))
   }
   R 0;
 }
 
-ZV* ma(J s) {V* p=malloc(s);memset(p,0,s);R p;}
-ZV* ra(V* p, J s) {R realloc(p, s);}
-ZK ga(J s) {R ma(sizeof(struct k0)-1+s);}
-ZK rga(K x, J s) {R ra(x, sizeof(struct k0)+sz(xt)*xn-1+s);}
-ZK ktn(I t, J n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n), xt=t, xn=n;R x;};
-ZK ks(S s) {I n=strlen(s);K x=ktn(KC,n);strncpy((S)xG,s,n);R x;}
-ZK kc(C c) {K x=ga(0);xt=-KC, x->g=(G)c;R x;}
-ZK ki(I i) {K x=ga(0);xt=-KI, xi=i;R x;}
-ZK ksn(S s, I n) {K x=ktn(KC,n);strncpy((S)xG,s,n);R x;}
-V js(K* x, S s) {I n=strlen(s);*x=rga(*x, n);strncpy((S)&kG(*x)[(*x)->n],s,n);(*x)->n+=n;}
-V jk(K* x, K y) {I s=sizeof(G*);*x=rga(*x,(*x)->n+1*s);memcpy(&kG(*x)[(*x)->n*s],&y,s);(*x)->n++;}
+// memory
+ZV* ma(L s) {V* p=malloc(s);memset(p,0,s);R p;}
+ZV* ra(V* p, L s) {R realloc(p, s);}
+ZK ga(L s) {R ma(sizeof(struct k0)-1+s);}
+ZK rga(K x, L n) {R ra(x, sizeof(struct k0)+sz(xt)*n-1);}
+
+// scalar
+ZK ka(I t) {K x=ga(0);xt=-t;R x;}
+ZK kc(C c) {K x=ka(-KC); x->g=(G)c;R x;}
+ZK ki(I i) {K x=ka(-KI); x->i=i;R x;}
+
+// lists
+ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n), xt=t, xn=n;R x;};
+ZK kpn(S s, I n) {K x=ktn(KC,n);strncpy((S)xG,s,n);R x;}
+ZK kp(S s) {R kpn(s,strlen(s));}
+ZV js(K* x, S s) {I n=strlen(s);*x=rga(*x,n);strncpy((S)&kG(*x)[(*x)->n],s,n);(*x)->n+=n;}
+ZV jk(K* x, K y) {*x=rga(*x,++(*x)->n);memcpy(&kK(*x)[(*x)->n-1],&y,sizeof(G*));}
+ZV jv(K* x, K y) {I n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(*x)[n],&kG(y),y->n*sz(y->t));}
+
+//tables
+
 
 //parser
 #define SB         0    /* blank                           */
@@ -100,7 +110,7 @@ Z C spell[]={
 };
 C spellin(C c) {DO(4,P(spell[i]==c,spell[i+4]));R 0;}
 I ds(G id) {DO(sizeof(ctype), P(pst[id].id==id, pst[id].t));R 0;}
-I qn(S tk, J n) {
+I qn(S tk, L n) {
   DO(n, P(tk[i]<'0'||(tk[i]>'9'&&tk[i]<'A')||(tk[i]>'Z'&&tk[i]<'a')||tk[i]>'z',0));
   R NOUN;
 }
@@ -127,7 +137,7 @@ PT cases[] = {
 V enqueue(K s, K w) {I top=0;SQ stack[8000]={};
   O("\n");
   for(I i=w->n-1;i>=0;i-=2) {
-    S tk; J len=0; I ct=-1; K r;
+    S tk; L len=0; I ct=-1; K r;
     tk=(S)kC(s)+kI(w)[i-1], len=kI(w)[i]-kI(w)[i-1]+1;
 
     ct=ctype[tk[0]];
@@ -135,9 +145,9 @@ V enqueue(K s, K w) {I top=0;SQ stack[8000]={};
 
     SW(ct) {
       CS(CO, {if((ct=qv(tk[0]))==0)ct=spellin(tk[0]);r=kc(tk[0]);})
-      CS(CA, (ct=CHAR,    r=ksn(tk, len)))
+      CS(CA, (ct=CHAR,    r=kpn(tk, len)))
       CS(C9, (ct=NUMERIC, r=ki(atoi(tk))))
-      CD:    (ct=NOUN,    r=ksn(tk, len));
+      CD:    (ct=NOUN,    r=kpn(tk, len));
     }
 
     O("\n");
@@ -173,7 +183,7 @@ int main() {
   pdef(CPLUS,VERB,0,plus,0,0,0);
   pdef(CMINUS,VERB,0,minus,0,0,0);
 
-  K x=ks("z:1-10+4;x:10-4+2-3;y:1;k:2+2;");
+  K x=kp("z:1-10+4;x:10-4+2-3;y:1;k:2+2;");
   //  js(&x, "z:1;");
 
   O("len:%lld\n", xn);
@@ -187,12 +197,12 @@ int main() {
   enqueue(x,w);
 
   K y=ktn(0,0);
-  K s=ks("ciao");
+  K z=ktn(0,0);
 
-  K s1=ks("kek");
-  jk(&y, s);
-  jk(&y, s1);
+  jk(&y, kp("ciao"));
+  jk(&z, kp("kek"));
 
-  OS(kK(y)[0]);
-  OS(kK(y)[1]);
+  jv(&y,z);
+
+  OS(kK(z)[0])
 }
