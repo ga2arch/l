@@ -26,7 +26,7 @@ typedef char*S,C;
 typedef unsigned char G;
 typedef short H;
 typedef int I;
-typedef long long J;
+typedef unsigned __int128 J;
 typedef float E;
 typedef double F;
 typedef void V;
