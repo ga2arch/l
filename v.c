@@ -26,20 +26,19 @@ ZV* ra(V* p, L s) {R realloc(p, s);}
 ZK ga(L s) {R ma(sizeof(struct k0)-1+s);}
 ZK rga(K x, L n) {R ra(x, sizeof(struct k0)+sz(xt)*n-1);}
 
-// scalar
-ZK ka(I t) {K x=ga(0);xt=-t;R x;}
+// atoms
+ZK ka(I t) {K x=ga(0);xt=t;R x;}
 ZK kc(C c) {K x=ka(-KC); x->g=(G)c;R x;}
 ZK ki(I i) {K x=ka(-KI); x->i=i;R x;}
 
 // lists
-ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n), xt=t, xn=n;R x;};
+ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n),xt=t,xn=n;R x;};
 ZK kpn(S s, I n) {K x=ktn(KC,n);strncpy((S)xG,s,n);R x;}
 ZK kp(S s) {R kpn(s,strlen(s));}
 ZK ja(K* x, V* y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],y,sz((*x)->t));(*x)->n++;R *x;}
 ZK js(K* x, S s) {I n=strlen(s);*x=rga(*x,n);strncpy((S)&kG(*x)[(*x)->n],s,n);(*x)->n+=n;R *x;}
 ZK jk(K* x, K y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],&y,sizeof(G*));(*x)->n++;R *x;}
-ZK jv(K* x, K y) {U((*x)->t==y->t);
-  I n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(*x)[n],&kG(y),y->n*sz(y->t));(*x)->n=n+y->n;R *x;}
+ZK jv(K* x, K y) {U((*x)->t==y->t);I n=0;n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(*x)[n],&kG(y),y->n*sz(y->t));(*x)->n=n+y->n;R *x;}
 
 //tables
 
@@ -90,15 +89,18 @@ ZI pt(I t) {
   R 0;
 }
 
-K1(wordil) {I i=0,s=0,e=0,b=0,wi=0;ST st;K w=ktn(KI,xn*2);
+K1(wordil) {I i=0,s=0,e=0,b=0,ix=0;ST st;K ixs;K bs;
+  ixs=ktn(KI,xn*2),bs=ktn(0,0);
   for(;i<xn;i++) {
     st=state[s][ctype[xG[i]]], s=st.n, e=st.e;
-    if (e==1) {kI(w)[wi]=b, kI(w)[wi+1]=i-1, b=i, wi+=2;}
+    if (e==1) {kI(ixs)[ix]=b, kI(ixs)[ix+1]=i-1, b=i, ix+=2;}
     else if (e==2) {b=i;}
-    O("i:%i - state: %i - effect:%i - b:%i - wi:%i - c:%c - %i\n", i,s,e,b,wi,xG[i],ctype[xG[i]]);
+    O("i:%i - state: %i - effect:%i - b:%i - ix:%i - c:%c - %i\n", i,s,e,b,ix,xG[i],ctype[xG[i]]);
+
+    if(SEMICOLON==xG[i]){O("found ;, adding block\n");(ixs)->n=ix;jk(&bs, ixs);ixs=ktn(KI,xn*2);ix=0;}
   }
-  kI(w)[wi]=b, kI(w)[wi+1]=i-1, w->n=wi+2;
-  R w;
+  if(SEMICOLON!=xG[i-1]){kI(ixs)[ix]=b, kI(ixs)[ix+1]=i-1, (ixs)->n=ix+2;jk(&bs, ixs);}
+  R bs;
 }
 
 K3(is)   {Os(x);O(" is %i\n", z->i);R 0;}
@@ -112,22 +114,10 @@ Z C spell[]={
 };
 C spellin(C c) {DO(4,P(spell[i]==c,spell[i+4]));R 0;}
 I ds(G id) {DO(sizeof(ctype), P(pst[id].id==id, pst[id].t));R 0;}
-I qn(S tk, L n) {
-  DO(n, P(tk[i]<'0'||(tk[i]>'9'&&tk[i]<'A')||(tk[i]>'Z'&&tk[i]<'a')||tk[i]>'z',0));
-  R NOUN;
-}
+I qn(S tk, L n) {DO(n, P(tk[i]<'0'||(tk[i]>'9'&&tk[i]<'A')||(tk[i]>'Z'&&tk[i]<'a')||tk[i]>'z',0));R NOUN;}
 I qv(C c) {I s;I ct;s=spellin(c);U(ct=ds(s));R ct;}
-
-ZI pdef(C id, I t, K(*f1)(), K(*f2)(), I mr, I lr, I rr) {
-  PV* v=&pst[(G)id];
-  v->id=id;
-  v->f1=f1;
-  v->f2=f2;
-  v->mr=mr;
-  v->lr=lr;
-  v->rr=rr;
-  v->t=t;
-  R 1;
+ZI pdef(C id, I t, K(*f1)(), K(*f2)(), I mr, I lr, I rr) {PV* v;
+  v=&pst[(G)id],v->id=id,v->f1=f1,v->f2=f2,v->mr=mr,v->lr=lr,v->rr=rr,v->t=t;R 1;
 }
 
 PT cases[] = {
@@ -136,67 +126,71 @@ PT cases[] = {
   EDGE+VNA,  NOUN,       VERB, NOUN, dyad, 1, 3
 };
 
-V enqueue(K s, K w) {I top=0;SQ stack[8000]={};
+V enqueue(K s, K bs) {
   O("\n");
-  for(I i=w->n-1;i>=0;i-=2) {
-    S tk; L len=0; I ct=-1; K r;
-    tk=(S)kC(s)+kI(w)[i-1], len=kI(w)[i]-kI(w)[i-1]+1;
+  for(I b=0;b<bs->n;b++) {
+    I top=0;SQ stack[8000]={};K ixs=kK(bs)[b];
+    for(I i=ixs->n-1;i>=0;i-=2) {
+      S tk; L len=0; I ct=-1; K r;
+      tk=(S)kC(s)+kI(ixs)[i-1], len=kI(ixs)[i]-kI(ixs)[i-1]+1;
 
-    ct=ctype[tk[0]];
-    O("\nt: %i", ct);
+      ct=ctype[tk[0]];
+      O("\nt: %i", ct);
 
-    SW(ct) {
-      CS(CO, {if((ct=qv(tk[0]))==0)ct=spellin(tk[0]);r=kc(tk[0]);})
-      CS(CA, (ct=CHAR,    r=kpn(tk, len)))
-      CS(C9, (ct=NUMERIC, r=ki(atoi(tk))))
-      CD:    (ct=NOUN,    r=kpn(tk, len));
-    }
+      SW(ct) {
+        CS(CO, {if((ct=qv(tk[0]))==0)ct=spellin(tk[0]);r=kc(tk[0]);})
+          CS(CA, (ct=CHAR,    r=kpn(tk, len)))
+          CS(C9, (ct=NUMERIC, r=ki(atoi(tk))))
+          CD:    (ct=NOUN,    r=kpn(tk, len));
+      }
 
-    O("\n");
-    DO(len, O("<%c,%i>", tk[i], r->i););
-    O(" - %i", ct);O("\n");
+      O("\n");
+      DO(len, O("<%c,%i>", tk[i], r->i););
+      O(" - %i", ct);O("\n");
 
-    stack[top].t=ct, stack[top].e=r, top+=1;
+      stack[top].t=ct, stack[top].e=r, top+=1;
 
-    O("top: %i", top);O("\n");
-    DO(top, O("<%i,%i> - ", stack[i].t, stack[i].e->i))O("\n");
-    if(top<4)continue;
+      O("top: %i", top);O("\n");
+      DO(top, O("<%i,%i> - ", stack[i].t, stack[i].e->i))O("\n");
+      if(top<4)continue;
 
-    for(I j=0;j<sizeof(cases)/sizeof(cases[0]);j++) {I cond=1;I start;
-      start=top-4;
-      DO(4, cond=cond&&(cases[j].c[i]&stack[start+3-i].t));
+      for(I j=0;j<sizeof(cases)/sizeof(cases[0]);j++) {I cond=1;I start;
+        start=top-4;
+        DO(4, cond=cond&&(cases[j].c[i]&stack[start+3-i].t));
 
-      if (cond) {I a,b,o=0;
-        a=cases[j].b, b=cases[j].e;
-        r=(*cases[j].f)(stack[start+3-a].e,stack[start+3-a-1].e,stack[start+3-b].e);
-        if(r)stack[start+3-b].t=pt(r->t), stack[start+3-b].e=r, o=1;
-        memmove(&stack[start+3-b+o], &stack[start+3-a+1], (top-a)*sizeof(stack[0]));
-        top-=b-a+(o?0:1);
-        break;
+        if (cond) {I a,b,o=0;
+          a=cases[j].b, b=cases[j].e;
+          r=(*cases[j].f)(stack[start+3-a].e,stack[start+3-a-1].e,stack[start+3-b].e);
+          if(r)stack[start+3-b].t=pt(r->t), stack[start+3-b].e=r, o=1;
+          memmove(&stack[start+3-b+o], &stack[start+3-a+1], (top-a)*sizeof(stack[0]));
+          top-=b-a+(o?0:1);
+          break;
+        }
       }
     }
   }
-  free(w);
-  free(s);
-  DO(top, free(stack[i].e))
 }
 
 int main() {
   pdef(CPLUS,VERB,0,plus,0,0,0);
   pdef(CMINUS,VERB,0,minus,0,0,0);
 
-  K x=kp("z:1-10+4;x:10-4+2-3;y:1;k:2+2;");
+  K x=kp("z:1+10+2+3;y:1;z:10-2+3-4;x:1;l:2;");
   //  js(&x, "z:1;");
 
   O("len:%lld\n", xn);
 
   OS(x);
-  K w=wordil(x);
+  K bs=wordil(x);
 
-  O("%lld\n", w->n);
-  DO(w->n, O("%i",kI(w)[i]));
+  O("%lld\n", bs->n);
+  for(I i=0;i<bs->n;i++) {
+    K ixs=kK(bs)[i];
+    DO(ixs->n, O("%i",kI(ixs)[i]))O("\n");
+  }
+
   O("\n");
-  enqueue(x,w);
+  enqueue(x,bs);
 
   K y=ktn(0,0);
   K z=ktn(0,0);

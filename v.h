@@ -107,9 +107,10 @@ typedef struct k0{
 #define NUMERIC (INT)
 #define NOUN    (NUMERIC+CHAR)
 
-#define ASGN    '\200'
-#define CPLUS    '+'
-#define CMINUS   '-'
+#define ASGN     '\200'
+#define CPLUS     '+'
+#define CMINUS    '-'
+#define SEMICOLON ';'
 
 typedef struct {C v; K(*Kf);} VB;
 typedef struct {I c[4]; K(*f)(K,K,K); I b,e;} PT;
