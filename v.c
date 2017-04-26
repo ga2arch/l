@@ -36,7 +36,7 @@ ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n),xt=t,xn=n;R x;};
 ZK kpn(S s, I n) {K x=ktn(KC,n);strncpy((S)xG,s,n);R x;}
 ZK kp(S s) {R kpn(s,strlen(s));}
 ZK ja(K* x, V* y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],y,sz((*x)->t));(*x)->n++;R *x;}
-ZK js(K* x, S s) {I n=strlen(s);*x=rga(*x,n);strncpy((S)&kG(*x)[(*x)->n],s,n);(*x)->n+=n;R *x;}
+ZK js(K* x, S s) {I n=strlen(s);*x=rga(*x,(*x)->n+n);strncpy((S)&kG(*x)[(*x)->n],s,n);(*x)->n+=n;R *x;}
 ZK jk(K* x, K y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],&y,sizeof(G*));(*x)->n++;R *x;}
 ZK jv(K* x, K y) {U((*x)->t==y->t);I n=0;n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(*x)[n],&kG(y),y->n*sz(y->t));(*x)->n=n+y->n;R *x;}
 
@@ -90,7 +90,7 @@ ZI pt(I t) {
 }
 
 K1(wordil) {I i=0,s=0,e=0,b=0,ix=0;ST st;K ixs;K bs;
-  js(&x, ";");ixs=ktn(KI,xn*2),bs=ktn(0,0);
+  js(&x, ";\0");ixs=ktn(KI,xn*2),bs=ktn(0,0);
   for(;i<xn;i++) {
     st=state[s][ctype[xG[i]]], s=st.n, e=st.e;
     if (e==EI) {kI(ixs)[ix]=b, kI(ixs)[ix+1]=i-1, b=i, ix+=2;}
@@ -173,8 +173,7 @@ int main() {
   pdef(CPLUS,VERB,0,plus,0,0,0);
   pdef(CMINUS,VERB,0,minus,0,0,0);
 
-  K x=kp("z:1+10+2+3;y:1;z:10-2+3-4;x:1;l:2");
-  //  js(&x, "z:1;");
+  K x=kp("z:1+10+2+3;y:1;z:10-2+3-4;x:1;l:2\0");
 
   O("len:%lld\n", xn);
 
@@ -193,9 +192,9 @@ int main() {
   K y=ktn(0,0);
   K z=ktn(0,0);
 
-  jk(&y, kp("ciao"));
-  jk(&z, kp("kek"));
-  jk(&z, kp("lol"));
+  jk(&y, kp("ciao\0"));
+  jk(&z, kp("kek\0"));
+  jk(&z, kp("lol\0"));
 
   jv(&y,z);
   jk(&y,z);
