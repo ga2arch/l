@@ -90,23 +90,21 @@ ZI pt(I t) {
 }
 
 K1(wordil) {I i=0,s=0,e=0,b=0,ix=0;ST st;K ixs;K bs;
-  ixs=ktn(KI,xn*2),bs=ktn(0,0);
+  js(&x, ";");ixs=ktn(KI,xn*2),bs=ktn(0,0);
   for(;i<xn;i++) {
     st=state[s][ctype[xG[i]]], s=st.n, e=st.e;
-    if (e==1) {kI(ixs)[ix]=b, kI(ixs)[ix+1]=i-1, b=i, ix+=2;}
-    else if (e==2) {b=i;}
+    if (e==EI) {kI(ixs)[ix]=b, kI(ixs)[ix+1]=i-1, b=i, ix+=2;}
+    else if (e==EN) b=i;
     O("i:%i - state: %i - effect:%i - b:%i - ix:%i - c:%c - %i\n", i,s,e,b,ix,xG[i],ctype[xG[i]]);
-
-    if(SEMICOLON==xG[i]){O("found ;, adding block\n");(ixs)->n=ix;jk(&bs, ixs);ixs=ktn(KI,xn*2);ix=0;}
+    if(s==SO&&SEMICOLON==xG[i]){O("found ;, adding block\n");ixs->n=ix;jk(&bs, ixs);ixs=ktn(KI,xn*2);ix=0;}
   }
-  if(SEMICOLON!=xG[i-1]){kI(ixs)[ix]=b, kI(ixs)[ix+1]=i-1, (ixs)->n=ix+2;jk(&bs, ixs);}
   R bs;
 }
 
 K3(is)   {Os(x);O(" is %i\n", z->i);R 0;}
-K2(plus) {I a=0,b=0;I sum=x->i+y->i;O("sum = %i\n", sum);R ki(sum);}
-K2(minus) {I a=0,b=0;I sub=x->i-y->i;O("sub = %i\n", sub);R ki(sub);}
-K3(dyad) {O("dyad: %c\n",y->g);PV* v=&pst[y->g]; R (*v->f2)(x,z);}
+K2(plus) {I sum=x->i+y->i;O("sum = %i\n", sum);R ki(sum);}
+K2(minus) {I sub=x->i-y->i;O("sub = %i\n", sub);R ki(sub);}
+K3(dyad) {O("dyad: %c\n",y->g);PV* v=&pst[y->g];R (*v->f2)(x,z);}
 
 Z C spell[]={
   ':',  ';',  '+', '-',
@@ -175,7 +173,7 @@ int main() {
   pdef(CPLUS,VERB,0,plus,0,0,0);
   pdef(CMINUS,VERB,0,minus,0,0,0);
 
-  K x=kp("z:1+10+2+3;y:1;z:10-2+3-4;x:1;l:2;");
+  K x=kp("z:1+10+2+3;y:1;z:10-2+3-4;x:1;l:2");
   //  js(&x, "z:1;");
 
   O("len:%lld\n", xn);
