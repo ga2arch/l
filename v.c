@@ -24,7 +24,7 @@ ZI sz(I t) {
 ZV* ma(L s) {V* p=malloc(s);memset(p,0,s);R p;}
 ZV* ra(V* p, L s) {R realloc(p, s);}
 ZK ga(L s) {R ma(sizeof(struct k0)-1+s);}
-ZK rga(K x, L n) {R ra(x, sizeof(struct k0)+sz(xt)*n-1);}
+ZK rga(K x, L n) {R ra(x, sizeof(struct k0)-1+sz(xt)*n);}
 
 // atoms
 ZK ka(I t) {K x=ga(0);xt=t;R x;}
@@ -33,10 +33,10 @@ ZK ki(I i) {K x=ka(-KI); x->i=i;R x;}
 
 // lists
 ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n),xt=t,xn=n;R x;};
-ZK kpn(S s, I n) {K x=ktn(KC,n);strncpy((S)xG,s,n);R x;}
+ZK kpn(S s, I n) {K x=ktn(KC,n);memcpy((S)xG,s,n);R x;}
 ZK kp(S s) {R kpn(s,strlen(s));}
 ZK ja(K* x, V* y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],y,sz((*x)->t));(*x)->n++;R *x;}
-ZK js(K* x, S s) {I n=strlen(s);*x=rga(*x,(*x)->n+n);strncpy((S)&kG(*x)[(*x)->n],s,n);(*x)->n+=n;R *x;}
+ZK js(K* x, S s) {I n=strlen(s);*x=rga(*x,(*x)->n+n);memcpy(&kG(*x)[(*x)->n],s,n);(*x)->n+=n;R *x;}
 ZK jk(K* x, K y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],&y,sizeof(G*));(*x)->n++;R *x;}
 ZK jv(K* x, K y) {U((*x)->t==y->t);I n=0;n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(*x)[n],&kG(y),y->n*sz(y->t));(*x)->n=n+y->n;R *x;}
 
@@ -89,8 +89,8 @@ ZI pt(I t) {
   R 0;
 }
 
-K1(wordil) {I i=0,s=0,e=0,b=0,ix=0;ST st;K ixs;K bs;
-  js(&x, ";\0");ixs=ktn(KI,xn*2),bs=ktn(0,0);
+K wordil(K* px) {I i=0,s=0,e=0,b=0,ix=0;ST st;K x;K ixs;K bs;
+  js(px, ";");x=*px;ixs=ktn(KI,xn*2),bs=ktn(0,0);
   for(;i<xn;i++) {
     st=state[s][ctype[xG[i]]], s=st.n, e=st.e;
     if (e==EI) {kI(ixs)[ix]=b, kI(ixs)[ix+1]=i-1, b=i, ix+=2;}
@@ -126,8 +126,7 @@ PT cases[] = {
 
 V enqueue(K s, K bs) {
   O("\n");
-  for(I b=0;b<bs->n;b++) {
-    I top=0;SQ stack[8000]={};K ixs=kK(bs)[b];
+  for(I b=0;b<bs->n;b++) {I top=0;SQ stack[8000]={};K ixs=kK(bs)[b];
     for(I i=ixs->n-1;i>=0;i-=2) {
       S tk; L len=0; I ct=-1; K r;
       tk=(S)kC(s)+kI(ixs)[i-1], len=kI(ixs)[i]-kI(ixs)[i-1]+1;
@@ -178,7 +177,7 @@ int main() {
   O("len:%lld\n", xn);
 
   OS(x);
-  K bs=wordil(x);
+  K bs=wordil(&x);
 
   O("%lld\n", bs->n);
   for(I i=0;i<bs->n;i++) {
