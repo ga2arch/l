@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
+int debug=0;
 //toolkit
 ZI sz(I t) {
   SW(abs(t)) {
@@ -95,16 +95,16 @@ K wordil(K* px) {I i=0,s=0,e=0,b=0,ix=0;ST st;K x;K ixs;K bs;
     st=state[s][ctype[xG[i]]], s=st.n, e=st.e;
     if (e==EI) {kI(ixs)[ix]=b, kI(ixs)[ix+1]=i-1, b=i, ix+=2;}
     else if (e==EN) b=i;
-    O("i:%i - state: %i - effect:%i - b:%i - ix:%i - c:%c - %i\n", i,s,e,b,ix,xG[i],ctype[xG[i]]);
-    if(s==SO&&SEMICOLON==xG[i]){O("found ;, adding block\n");ixs->n=ix;jk(&bs, ixs);ixs=ktn(KI,xn*2);ix=0;}
+    LO("i:%i - state: %i - effect:%i - b:%i - ix:%i - c:%c - %i\n", i,s,e,b,ix,xG[i],ctype[xG[i]]);
+    if(s==SO&&SEMICOLON==xG[i]){LO("found ; adding block\n");ixs->n=ix;jk(&bs, ixs);ixs=ktn(KI,xn*2);ix=0;}
   }
   R bs;
 }
 
-K3(is)   {Os(x);O(" is %i\n", z->i);R 0;}
-K2(plus) {I sum=x->i+y->i;O("sum = %i\n", sum);R ki(sum);}
-K2(minus) {I sub=x->i-y->i;O("sub = %i\n", sub);R ki(sub);}
-K3(dyad) {O("dyad: %c\n",y->g);PV* v=&pst[y->g];R (*v->f2)(x,z);}
+K3(is)   {Os(x);LO(" is %i\n", z->i);R 0;}
+K2(plus) {I sum=x->i+y->i;LO("sum = %i\n", sum);R ki(sum);}
+K2(minus) {I sub=x->i-y->i;LO("sub = %i\n", sub);R ki(sub);}
+K3(dyad) {LO("dyad: %c\n",y->g);PV* v=&pst[y->g];R (*v->f2)(x,z);}
 
 Z C spell[]={
   ':',  ';',  '+', '-',
@@ -124,87 +124,103 @@ PT cases[] = {
   EDGE+VNA,  NOUN,       VERB, NOUN, dyad, 1, 3
 };
 
-V enqueue(K s, K bs) {
-  O("\n");
+K enqueue(K s, K bs) {
+  LO("\n");
   for(I b=0;b<bs->n;b++) {I top=0;SQ stack[8000]={};K ixs=kK(bs)[b];
     for(I i=ixs->n-1;i>=0;i-=2) {
-      S tk; L len=0; I ct=-1; K r;
+      S tk; L len=0; I ct=-1; K r;I ws=4;
       tk=(S)kC(s)+kI(ixs)[i-1], len=kI(ixs)[i]-kI(ixs)[i-1]+1;
 
       ct=ctype[tk[0]];
-      O("\nt: %i", ct);
+      LO("\nt: %i", ct);
 
       SW(ct) {
         CS(CO, {if((ct=qv(tk[0]))==0)ct=spellin(tk[0]);r=kc(tk[0]);})
-          CS(CA, (ct=CHAR,    r=kpn(tk, len)))
-          CS(C9, (ct=NUMERIC, r=ki(atoi(tk))))
-          CD:    (ct=NOUN,    r=kpn(tk, len));
+        CS(CA, (ct=CHAR,    r=kpn(tk, len)))
+        CS(C9, (ct=NUMERIC, r=ki(atoi(tk))))
+        CD:    (ct=NOUN,    r=kpn(tk, len));
       }
 
-      O("\n");
-      DO(len, O("<%c,%i>", tk[i], r->i););
-      O(" - %i", ct);O("\n");
+      LO("\n");
+      DO(len, LO("<%c,%i>", tk[i], r->i););
+      LO(" - %i", ct);LO("\n");
 
       stack[top].t=ct, stack[top].e=r, top+=1;
 
-      O("top: %i", top);O("\n");
-      DO(top, O("<%i,%i> - ", stack[i].t, stack[i].e->i))O("\n");
-      if(top<4)continue;
+      LO("top: %i", top);LO("\n");
+      DO(top, LO("<%i,%i> - ", stack[i].t, stack[i].e->i))LO("\n");
+      if(top<4&&i>1)continue;
+      if(top<4)for(;top<4;top++)stack[top].t=MARK,stack[top].e=kp(";");
 
-      for(I j=0;j<sizeof(cases)/sizeof(cases[0]);j++) {I cond=1;I start;
-        start=top-4;
-        DO(4, cond=cond&&(cases[j].c[i]&stack[start+3-i].t));
+      for(I j=0;j<sizeof(cases)/sizeof(cases[0]);j++) {I cond=1;I start;I off;
+        start=top-ws, off=ws-1;
+        DO(ws, cond=cond&&(cases[j].c[i]&stack[start+off-i].t));
 
         if (cond) {I a,b,o=0;
           a=cases[j].b, b=cases[j].e;
-          r=(*cases[j].f)(stack[start+3-a].e,stack[start+3-a-1].e,stack[start+3-b].e);
-          if(r)stack[start+3-b].t=pt(r->t), stack[start+3-b].e=r, o=1;
-          memmove(&stack[start+3-b+o], &stack[start+3-a+1], (top-a)*sizeof(stack[0]));
+          r=(*cases[j].f)(stack[start+off-a].e,stack[start+off-a-1].e,stack[start+off-b].e);
+          if(r)stack[start+off-b].t=pt(r->t), stack[start+off-b].e=r, o=1;
+          memmove(&stack[start+off-b+o], &stack[start+off-a+1], (top-a)*sizeof(stack[0]));
           top-=b-a+(o?0:1);
           break;
         }
       }
-    }
+
+      if(i==1&&b==bs->n-1)R stack[0].e;};
   }
+  R 0;
 }
+
 
 int main() {
   pdef(CPLUS,VERB,0,plus,0,0,0);
   pdef(CMINUS,VERB,0,minus,0,0,0);
 
-  K x=kp("z:1+10+2+3;y:1;z:10-2+3-4;x:1;l:2\0");
-
-  O("len:%lld\n", xn);
-
-  OS(x);
-  K bs=wordil(&x);
-
-  O("%lld\n", bs->n);
-  for(I i=0;i<bs->n;i++) {
-    K ixs=kK(bs)[i];
-    DO(ixs->n, O("%i",kI(ixs)[i]))O("\n");
+  char str[8000]={0};
+  while(fgets(str,8000,stdin)){
+    K x=kp(str);K r=enqueue(x,wordil(&x));
+    if(r!=0&&r->t==-KI)O("%i\n", r->i);
   }
-
-  O("\n");
-  enqueue(x,bs);
-
-  K y=ktn(0,0);
-  K z=ktn(0,0);
-
-  jk(&y, kp("ciao\0"));
-  jk(&z, kp("kek\0"));
-  jk(&z, kp("lol\0"));
-
-  jv(&y,z);
-  jk(&y,z);
-
-  O("%s\n",kS(kK(y)[0]));
-  OS(kK(z)[0]);
-  OS(kK(kK(y)[3])[0]);
-
-  K j=ktn(KI, 0);
-  int i=5;
-  ja(&j, &i);
-
-  O("- %i",kI(j)[0]);
 }
+
+/* int main() { */
+/*   pdef(CPLUS,VERB,0,plus,0,0,0); */
+/*   pdef(CMINUS,VERB,0,minus,0,0,0); */
+
+
+/*   K x=kp("z:1+10+2+3;y:1;z:10-2+3-4;x:1;l:2;l"); */
+
+/*   LO("len:%lld\n", xn); */
+
+/*   OS(x); */
+/*   K bs=wordil(&x); */
+
+/*   LO("%lld\n", bs->n); */
+/*   for(I i=0;i<bs->n;i++) { */
+/*     K ixs=kK(bs)[i]; */
+/*     DO(ixs->n, LO("%i",kI(ixs)[i]))LO("\n"); */
+/*   } */
+
+/*   LO("\n"); */
+/*   enqueue(x,bs); */
+
+/*   K y=ktn(0,0); */
+/*   K z=ktn(0,0); */
+
+/*   jk(&y, kp("ciao\0")); */
+/*   jk(&z, kp("kek\0")); */
+/*   jk(&z, kp("lol\0")); */
+
+/*   jv(&y,z); */
+/*   jk(&y,z); */
+
+/*   LO("%s\n",kS(kK(y)[0])); */
+/*   OS(kK(z)[0]); */
+/*   OS(kK(kK(y)[3])[0]); */
+
+/*   K j=ktn(KI, 0); */
+/*   int i=5; */
+/*   ja(&j, &i); */
+
+/*   LO("- %i",kI(j)[0]); */
+/* } */

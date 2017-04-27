@@ -1,5 +1,6 @@
 #define DO(n,x)	{J i=0,_i=(n);for(;i<_i;++i){x;}}
 #define O printf
+#define LO(s,...) {if(debug)printf(s,##__VA_ARGS__);}
 #define OS(s) DO(s->n, O("%c",kG(s)[i]))O("\n");
 #define Os(s) DO(s->n, O("%c",kG(s)[i]));
 #define R return
