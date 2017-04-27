@@ -112,6 +112,7 @@ typedef struct k0{
 #define CPLUS     '+'
 #define CMINUS    '-'
 #define SEMICOLON ';'
+#define CESCMARK  '!'
 
 typedef struct {C v; K(*Kf);} VB;
 typedef struct {I c[4]; K(*f)(K,K,K); I b,e;} PT;

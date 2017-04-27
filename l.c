@@ -1,8 +1,9 @@
-#include "v.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "l.h"
 int debug=0;
+
 //toolkit
 ZI sz(I t) {
   SW(abs(t)) {
@@ -62,9 +63,9 @@ ZK jv(K* x, K y) {U((*x)->t==y->t);I n=0;n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(
 typedef struct {C n,e;} ST;
 
 Z ST state[4][4]={
-  /*SB */ {{SB,EN},{SB,0 },{SA,EN},{S9,EN}},
+  /*SB */ {{SO,EN},{SB,0 },{SA,EN},{S9,EN}},
   /*SA */ {{SO,EI},{SB,EI},{SA,0 },{S9,EI}},
-  /*SO */ {{SO,0 },{SB,EI},{SA,EI},{S9,EI}},
+  /*SO */ {{SO,EI},{SB,EI},{SA,EI},{S9,EI}},
   /*S9 */ {{SO,EI},{SB,EI},{SA,EI},{S9,0}},
 };
 /*          CO      CB      CA      C9   */
@@ -80,7 +81,7 @@ CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA,  0,  0,  0,  0, C9, /* 5 PQRSTUVWXYZ
 CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA,  0,  0,  0,  0,  0, /* 7 pqrstuvwxyz{|}~  */
 };
 
-PV pst[256]={};
+PV pst[256]={0};
 ZI pt(I t) {
   SW(abs(t)) {
     CS(KI, R INT)
@@ -102,15 +103,24 @@ K wordil(K* px) {I i=0,s=0,e=0,b=0,ix=0;ST st;K x;K ixs;K bs;
 }
 
 K3(is)   {Os(x);LO(" is %i\n", z->i);R 0;}
-K2(plus) {I sum=x->i+y->i;LO("sum = %i\n", sum);R ki(sum);}
+K2(plus) {
+  LO("<%i,%i>",x->t, y->t);
+  if(x->t==-KI&&y->t==-KI)R ki(x->i+y->i);
+  if(x->t==-KI&&y->t==KI){DO(y->n,kI(y)[i]+=x->i);R y;}
+  if(x->t==KI&&y->t==-KI){DO(x->n,kI(x)[i]+=y->i);R x;}
+  R 0;}
+
 K2(minus) {I sub=x->i-y->i;LO("sub = %i\n", sub);R ki(sub);}
+K2(intf) {LO("intf\n");K ls=ktn(KI,x->i);DO(x->i, kI(ls)[i]=i);R ls;}
+
 K3(dyad) {LO("dyad: %c\n",y->g);PV* v=&pst[y->g];R (*v->f2)(x,z);}
+K3(monad) {LO("monad: %c\n",x->g);PV* v=&pst[x->g];R (*v->f1)(z);}
 
 Z C spell[]={
-  ':',  ';',  '+', '-',
-  ASGN, MARK, CPLUS, CMINUS
+  ':',  ';',  '+', '-',      '!',
+  ASGN, MARK, CPLUS, CMINUS, CESCMARK
 };
-C spellin(C c) {DO(4,P(spell[i]==c,spell[i+4]));R 0;}
+C spellin(C c) {DO(sizeof(spell)/2,P(spell[i]==c,spell[i+(sizeof(spell)/2)]));R 0;}
 I ds(G id) {DO(sizeof(ctype), P(pst[id].id==id, pst[id].t));R 0;}
 I qn(S tk, L n) {DO(n, P(tk[i]<'0'||(tk[i]>'9'&&tk[i]<'A')||(tk[i]>'Z'&&tk[i]<'a')||tk[i]>'z',0));R NOUN;}
 I qv(C c) {I s;I ct;s=spellin(c);U(ct=ds(s));R ct;}
@@ -119,13 +129,20 @@ ZI pdef(C id, I t, K(*f1)(), K(*f2)(), I mr, I lr, I rr) {PV* v;
 }
 
 PT cases[] = {
-  NOUN+NAME, ASGN,       VNA,  ANY,  is,   0, 2,
-  MARK,      NOUN+NAME,  ASGN, VNA,  is,   1, 3,
-  EDGE+VNA,  NOUN,       VERB, NOUN, dyad, 1, 3
+  NOUN+NAME, ASGN,       VNA,  ANY,  is,    0, 2,
+  MARK,      NOUN+NAME,  ASGN, VNA,  is,    1, 3,
+  EDGE+VNA,  NOUN,       VERB, NOUN, dyad,  1, 3,
+  EDGE+VNA,  VERB,       NOUN, ANY,  monad, 1, 2,
+  EDGE+VNA,  ANY,        VERB, NOUN, monad, 2, 3
 };
 
 K enqueue(K s, K bs) {
   LO("\n");
+  for(I i=0;i<bs->n;i++) {
+    K ixs=kK(bs)[i];
+    DO(ixs->n, LO("%i",kI(ixs)[i]))LO("\n");
+  }
+
   for(I b=0;b<bs->n;b++) {I top=0;SQ stack[8000]={};K ixs=kK(bs)[b];
     for(I i=ixs->n-1;i>=0;i-=2) {
       S tk; L len=0; I ct=-1; K r;I ws=4;
@@ -152,21 +169,27 @@ K enqueue(K s, K bs) {
       if(top<4&&i>1)continue;
       if(top<4)for(;top<4;top++)stack[top].t=MARK,stack[top].e=kp(";");
 
-      for(I j=0;j<sizeof(cases)/sizeof(cases[0]);j++) {I cond=1;I start;I off;
-        start=top-ws, off=ws-1;
-        DO(ws, cond=cond&&(cases[j].c[i]&stack[start+off-i].t));
+      I ret=0;
+      do {
+        for(I j=0;j<sizeof(cases)/sizeof(cases[0]);j++) {I cond=1;I start;I off;
+          start=top-ws, off=ws-1;
+          DO(ws, cond=cond&&(cases[j].c[i]&stack[start+off-i].t));
 
-        if (cond) {I a,b,o=0;
-          a=cases[j].b, b=cases[j].e;
-          r=(*cases[j].f)(stack[start+off-a].e,stack[start+off-a-1].e,stack[start+off-b].e);
-          if(r)stack[start+off-b].t=pt(r->t), stack[start+off-b].e=r, o=1;
-          memmove(&stack[start+off-b+o], &stack[start+off-a+1], (top-a)*sizeof(stack[0]));
-          top-=b-a+(o?0:1);
-          break;
+          if (cond) {I a,b,o=0;
+            a=cases[j].b, b=cases[j].e;
+            r=(*cases[j].f)(stack[start+off-a].e,stack[start+off-a-1].e,stack[start+off-b].e);
+            if(r)stack[start+off-b].t=pt(r->t), stack[start+off-b].e=r, o=1;
+            memmove(&stack[start+off-b+o], &stack[start+off-a+1], (top-a)*sizeof(stack[0]));
+            top-=b-a+(o?0:1);
+            ret=1;
+            break;
+          }
+          ret=0;
         }
-      }
+        for(;top<4;top++)stack[top].t=MARK,stack[top].e=kp(";");
+      } while (i==1&&b==bs->n-1&&top>3&&ret);
 
-      if(i==1&&b==bs->n-1)R stack[0].e;};
+      R stack[0].e;};
   }
   R 0;
 }
@@ -175,11 +198,13 @@ K enqueue(K s, K bs) {
 int main() {
   pdef(CPLUS,VERB,0,plus,0,0,0);
   pdef(CMINUS,VERB,0,minus,0,0,0);
+  pdef(CESCMARK,VERB,intf,0,0,0,0);
 
   char str[8000]={0};
   while(fgets(str,8000,stdin)){
-    K x=kp(str);K r=enqueue(x,wordil(&x));
+    K x=kp(str);x->n--;K r=enqueue(x,wordil(&x));
     if(r!=0&&r->t==-KI)O("%i\n", r->i);
+    if(r!=0&&r->t==KI){DO(r->n,O("%i ", kI(r)[i]));O("\n");};
   }
 }
 
