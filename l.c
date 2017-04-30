@@ -39,7 +39,7 @@ ZK kp(S s) {R kpn(s,strlen(s));}
 ZK ja(K* x, V* y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],y,sz((*x)->t));(*x)->n++;R *x;}
 ZK js(K* x, S s) {I n=strlen(s);*x=rga(*x,(*x)->n+n);memcpy(&kG(*x)[(*x)->n],s,n);(*x)->n+=n;R *x;}
 ZK jk(K* x, K y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],&y,sizeof(G*));(*x)->n++;R *x;}
-ZK jv(K* x, K y) {U((*x)->t==y->t);I n=0;n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(*x)[n],&kG(y),y->n*sz(y->t));(*x)->n=n+y->n;R *x;}
+ZK jv(K* x, K y) {U((*x)->t==y->t);I n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(*x)[n],&kG(y),y->n*sz(y->t));(*x)->n=n+y->n;R *x;}
 
 //tables
 
@@ -106,13 +106,11 @@ K3(is)   {Os(x);LO(" is %i\n", z->i);R 0;}
 K2(plus) {
   LO("<%i,%i>",x->t, y->t);
   if(x->t==-KI&&y->t==-KI)R ki(x->i+y->i);
-  if(x->t==-KI&&y->t==KI){DO(y->n,kI(y)[i]+=x->i);R y;}
-  if(x->t==KI&&y->t==-KI){DO(x->n,kI(x)[i]+=y->i);R x;}
+  else if(x->t==-KI&&y->t==KI){DO(y->n,kI(y)[i]+=x->i);R y;}
+  else if(x->t==KI&&y->t==-KI){DO(x->n,kI(x)[i]+=y->i);R x;}
   R 0;}
-
 K2(minus) {I sub=x->i-y->i;LO("sub = %i\n", sub);R ki(sub);}
 K2(intf) {LO("intf\n");K ls=ktn(KI,x->i);DO(x->i, kI(ls)[i]=i);R ls;}
-
 K3(dyad) {LO("dyad: %c\n",y->g);PV* v=&pst[y->g];R (*v->f2)(x,z);}
 K3(monad) {LO("monad: %c\n",x->g);PV* v=&pst[x->g];R (*v->f1)(z);}
 
@@ -124,9 +122,7 @@ C spellin(C c) {DO(sizeof(spell)/2,P(spell[i]==c,spell[i+(sizeof(spell)/2)]));R 
 I ds(G id) {DO(sizeof(ctype), P(pst[id].id==id, pst[id].t));R 0;}
 I qn(S tk, L n) {DO(n, P(tk[i]<'0'||(tk[i]>'9'&&tk[i]<'A')||(tk[i]>'Z'&&tk[i]<'a')||tk[i]>'z',0));R NOUN;}
 I qv(C c) {I s;I ct;s=spellin(c);U(ct=ds(s));R ct;}
-ZI pdef(C id, I t, K(*f1)(), K(*f2)(), I mr, I lr, I rr) {PV* v;
-  v=&pst[(G)id],v->id=id,v->f1=f1,v->f2=f2,v->mr=mr,v->lr=lr,v->rr=rr,v->t=t;R 1;
-}
+ZI pdef(C id, I t, K(*f1)(), K(*f2)(), I mr, I lr, I rr) {PV* v=&pst[(G)id];v->id=id,v->f1=f1,v->f2=f2,v->mr=mr,v->lr=lr,v->rr=rr,v->t=t;R 1;}
 
 PT cases[] = {
   NOUN+NAME, ASGN,       VNA,  ANY,  is,    0, 2,
@@ -136,18 +132,11 @@ PT cases[] = {
   EDGE+VNA,  ANY,        VERB, NOUN, monad, 2, 3
 };
 
-K enqueue(K s, K bs) {K res;
-  LO("\n");
-  for(I i=0;i<bs->n;i++) {
-    K ixs=kK(bs)[i];
-    DO(ixs->n, LO("%i",kI(ixs)[i]))LO("\n");
-  }
-
-  res=ktn(0,0);
+K enqueue(K s, K bs) {K res=ktn(0,0);;
+  DO(bs->n, K ixs=kK(bs)[i];DO(ixs->n, LO("%i",kI(ixs)[i]))LO("\n"););
   for(I b=0;b<bs->n;b++) {I top=0;SQ stack[8000]={0};K ixs=kK(bs)[b];
-    for(I i=ixs->n-1;i>=0;i-=2) {S tk;L len=0;K r;I ct=-1, ws=4;
+    for(I i=ixs->n-1;i>=0;i-=2) {S tk;L len=0;K r;I ct=-1, ws=4, ret=0;
       tk=(S)kC(s)+kI(ixs)[i-1], len=kI(ixs)[i]-kI(ixs)[i-1]+1, ct=ctype[tk[0]];
-
       LO("\nt: %i", ct);
       SW(ct) {
         CS(CO, {if((ct=qv(tk[0]))==0)ct=spellin(tk[0]);r=kc(tk[0]);})
@@ -155,33 +144,25 @@ K enqueue(K s, K bs) {K res;
         CS(C9, (ct=NUMERIC, r=ki(atoi(tk))))
         CD:    (ct=NOUN,    r=kpn(tk, len));
       }
-
       LO("\n");
       DO(len, LO("<%c,%i>", tk[i], r->i););
       LO(" - %i", ct);LO("\n");
-
       stack[top].t=ct, stack[top].e=r, top+=1;
-
       LO("top: %i", top);LO("\n");
       DO(top, LO("<%i,%i> - ", stack[i].t, stack[i].e->i))LO("\n");
       if(top<4&&i>1)continue;
       if(top<4)for(;top<4;top++)stack[top].t=MARK,stack[top].e=kp(";");
-
       DO(top, LO("<%i,%i> - ", stack[i].t, stack[i].e->i))LO("\n");
-
-      I ret=0;
       do {
         for(I j=0;j<sizeof(cases)/sizeof(cases[0]);j++) {I cond=1;I start;I off;
           start=top-ws, off=ws-1;
           DO(ws, cond=cond&&(cases[j].c[i]&stack[start+off-i].t));
-
           if (cond) {I a,b,o=0;
             a=cases[j].b, b=cases[j].e;
             r=(*cases[j].f)(stack[start+off-a].e,stack[start+off-a-1].e,stack[start+off-b].e);
             if(r)stack[start+off-b].t=pt(r->t), stack[start+off-b].e=r, o=1;
             memmove(&stack[start+off-b+o], &stack[start+off-a+1], (top-a)*sizeof(stack[0]));
-            top-=b-a+(o?0:1);
-            ret=1;
+            top-=b-a+(o?0:1), ret=1;
             break;
           }
           ret=0;
