@@ -5,21 +5,8 @@
 int debug=0;
 
 //toolkit
-ZI sz(I t) {
-  SW(abs(t)) {
-      CS(KB, R sizeof(C))
-      CS(KG, R sizeof(G))
-      CS(KH, R sizeof(H))
-      CS(KI, R sizeof(I))
-      CS(KJ, R sizeof(J))
-      CS(KE, R sizeof(E))
-      CS(KF, R sizeof(F))
-      CS(KC, R sizeof(C))
-      CS(KS, R sizeof(S))
-      CS(0,  R sizeof(G*))
-  }
-  R 0;
-}
+I sizes[10] = {sizeof(G*),sizeof(C),sizeof(G),sizeof(H),sizeof(I),sizeof(J),sizeof(E),sizeof(F),sizeof(C),sizeof(S)};
+ZI sz(I t) {R sizes[abs(t)];}
 
 // memory
 ZV* ma(L s) {V* p=malloc(s);memset(p,0,s);R p;}
@@ -82,13 +69,8 @@ CA, CA, CA, CA, CA, CA, CA, CA, CA, CA, CA,  0,  0,  0,  0,  0, /* 7 pqrstuvwxyz
 };
 
 PV pst[256]={0};
-ZI pt(I t) {
-  SW(abs(t)) {
-    CS(KI, R INT)
-    CS(KS, R CHAR)
-  }
-  R 0;
-}
+I ttype[] = {0,0,0,0,INT,0,0,0,0,CHAR};
+ZI pt(I t) {R ttype[abs(t)];}
 
 K wordil(K* px) {I i=0,s=0,e=0,b=0,ix=0;ST st;K x;K ixs;K bs;
   js(px, ";");x=*px;ixs=ktn(KI,xn*2),bs=ktn(0,0);
