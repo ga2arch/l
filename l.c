@@ -133,16 +133,17 @@ PT cases[] = {
   MARK,      NOUN+NAME,  ASGN, VNA,  is,    1, 3,
   EDGE+VNA,  NOUN,       VERB, NOUN, dyad,  1, 3,
   EDGE+VNA,  VERB,       NOUN, ANY,  monad, 1, 2,
-  EDGE+VNA,  ANY,        VERB, NOUN, monad, 2, 3
+  EDGE+VNA,  VERB,       VERB, NOUN, monad, 2, 3
 };
 
-K enqueue(K s, K bs) {
+K enqueue(K s, K bs) {K res;
   LO("\n");
   for(I i=0;i<bs->n;i++) {
     K ixs=kK(bs)[i];
     DO(ixs->n, LO("%i",kI(ixs)[i]))LO("\n");
   }
 
+  res=ktn(0,0);
   for(I b=0;b<bs->n;b++) {I top=0;SQ stack[8000]={};K ixs=kK(bs)[b];
     for(I i=ixs->n-1;i>=0;i-=2) {
       S tk; L len=0; I ct=-1; K r;I ws=4;
@@ -186,25 +187,30 @@ K enqueue(K s, K bs) {
           }
           ret=0;
         }
-        for(;top<4;top++)stack[top].t=MARK,stack[top].e=kp(";");
-      } while (i==1&&b==bs->n-1&&top>3&&ret);
-
-      R stack[0].e;};
+        if(ret&&i==1)for(;top<4;top++)stack[top].t=MARK,stack[top].e=kp(";");
+      } while (i==1&&ret);
+    }
+    jk(&res, stack[0].e);
   }
-  R 0;
+  R res;
 }
 
+V show(K r) {
+  if(r!=0&&r->t==-KI)O("%i\n", r->i);
+  else if(r!=0&&r->t==KI){DO(r->n,O("%i ", kI(r)[i]));O("\n");};
+}
 
-int main() {
+I main() {
   pdef(CPLUS,VERB,0,plus,0,0,0);
   pdef(CMINUS,VERB,0,minus,0,0,0);
   pdef(CESCMARK,VERB,intf,0,0,0,0);
 
-  char str[8000]={0};
-  while(fgets(str,8000,stdin)){
-    K x=kp(str);x->n--;K r=enqueue(x,wordil(&x));
-    if(r!=0&&r->t==-KI)O("%i\n", r->i);
-    if(r!=0&&r->t==KI){DO(r->n,O("%i ", kI(r)[i]));O("\n");};
+  C str[8000]={0};
+  O(">> ");
+  while(fgets(str,8000,stdin)){K x, rs;
+    x=kp(str),x->n-=1, rs=enqueue(x,wordil(&x));
+    DO(rs->n, show(kK(rs)[i]));
+    O(">> ");
   }
 }
 
