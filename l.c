@@ -195,63 +195,24 @@ K enqueue(K s, K bs) {K res;
   R res;
 }
 
-V show(K r) {
-  if(r!=0&&r->t==-KI)O("%i\n", r->i);
-  else if(r!=0&&r->t==KI){DO(r->n,O("%i ", kI(r)[i]));O("\n");};
+V show(K e) {
+  if(e==0) R;
+  if(e->t==-KI)O("%i\n", e->i);
+  else if(e->t==KI){DO(e->n,O("%i ", kI(e)[i]));O("\n");};
 }
 
-I main() {
+V init() {
   pdef(CPLUS,VERB,0,plus,0,0,0);
   pdef(CMINUS,VERB,0,minus,0,0,0);
   pdef(CESCMARK,VERB,intf,0,0,0,0);
+}
 
-  C str[8000]={0};
+V repl() {C str[8000]={0};
   O(">> ");
   while(fgets(str,8000,stdin)){K x, rs;
     x=kp(str),x->n-=1, rs=enqueue(x,wordil(&x));
-    DO(rs->n, show(kK(rs)[i]));
-    O(">> ");
+    DO(rs->n, show(kK(rs)[i]));O(">> ");
   }
 }
 
-/* int main() { */
-/*   pdef(CPLUS,VERB,0,plus,0,0,0); */
-/*   pdef(CMINUS,VERB,0,minus,0,0,0); */
-
-
-/*   K x=kp("z:1+10+2+3;y:1;z:10-2+3-4;x:1;l:2;l"); */
-
-/*   LO("len:%lld\n", xn); */
-
-/*   OS(x); */
-/*   K bs=wordil(&x); */
-
-/*   LO("%lld\n", bs->n); */
-/*   for(I i=0;i<bs->n;i++) { */
-/*     K ixs=kK(bs)[i]; */
-/*     DO(ixs->n, LO("%i",kI(ixs)[i]))LO("\n"); */
-/*   } */
-
-/*   LO("\n"); */
-/*   enqueue(x,bs); */
-
-/*   K y=ktn(0,0); */
-/*   K z=ktn(0,0); */
-
-/*   jk(&y, kp("ciao\0")); */
-/*   jk(&z, kp("kek\0")); */
-/*   jk(&z, kp("lol\0")); */
-
-/*   jv(&y,z); */
-/*   jk(&y,z); */
-
-/*   LO("%s\n",kS(kK(y)[0])); */
-/*   OS(kK(z)[0]); */
-/*   OS(kK(kK(y)[3])[0]); */
-
-/*   K j=ktn(KI, 0); */
-/*   int i=5; */
-/*   ja(&j, &i); */
-
-/*   LO("- %i",kI(j)[0]); */
-/* } */
+I main() {init();repl();}
