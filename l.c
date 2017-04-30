@@ -133,7 +133,7 @@ PT cases[] = {
   MARK,      NOUN+NAME,  ASGN, VNA,  is,    1, 3,
   EDGE+VNA,  NOUN,       VERB, NOUN, dyad,  1, 3,
   EDGE+VNA,  VERB,       NOUN, ANY,  monad, 1, 2,
-  EDGE+VNA,  VERB,       VERB, NOUN, monad, 2, 3
+  EDGE+VNA,  ANY,        VERB, NOUN, monad, 2, 3
 };
 
 K enqueue(K s, K bs) {K res;
@@ -144,14 +144,11 @@ K enqueue(K s, K bs) {K res;
   }
 
   res=ktn(0,0);
-  for(I b=0;b<bs->n;b++) {I top=0;SQ stack[8000]={};K ixs=kK(bs)[b];
-    for(I i=ixs->n-1;i>=0;i-=2) {
-      S tk; L len=0; I ct=-1; K r;I ws=4;
-      tk=(S)kC(s)+kI(ixs)[i-1], len=kI(ixs)[i]-kI(ixs)[i-1]+1;
+  for(I b=0;b<bs->n;b++) {I top=0;SQ stack[8000]={0};K ixs=kK(bs)[b];
+    for(I i=ixs->n-1;i>=0;i-=2) {S tk;L len=0;K r;I ct=-1, ws=4;
+      tk=(S)kC(s)+kI(ixs)[i-1], len=kI(ixs)[i]-kI(ixs)[i-1]+1, ct=ctype[tk[0]];
 
-      ct=ctype[tk[0]];
       LO("\nt: %i", ct);
-
       SW(ct) {
         CS(CO, {if((ct=qv(tk[0]))==0)ct=spellin(tk[0]);r=kc(tk[0]);})
         CS(CA, (ct=CHAR,    r=kpn(tk, len)))
@@ -169,6 +166,8 @@ K enqueue(K s, K bs) {K res;
       DO(top, LO("<%i,%i> - ", stack[i].t, stack[i].e->i))LO("\n");
       if(top<4&&i>1)continue;
       if(top<4)for(;top<4;top++)stack[top].t=MARK,stack[top].e=kp(";");
+
+      DO(top, LO("<%i,%i> - ", stack[i].t, stack[i].e->i))LO("\n");
 
       I ret=0;
       do {
@@ -210,7 +209,7 @@ V init() {
 V repl() {C str[8000]={0};
   O(">> ");
   while(fgets(str,8000,stdin)){K x, rs;
-    x=kp(str),x->n-=1, rs=enqueue(x,wordil(&x));
+    x=kp(str),x->n-=1,rs=enqueue(x,wordil(&x));
     DO(rs->n, show(kK(rs)[i]));O(">> ");
   }
 }
