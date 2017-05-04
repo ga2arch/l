@@ -12,6 +12,13 @@
 #define CD default
 #define CS(n,x)	case n:x;break;
 
+#define SIGN(a) (((a)<0)?-1:((a)>0))
+#define BIT_SET(a,b) ((a) |= (1<<(b)))
+#define BIT_CLEAR(a,b) ((a) &= ~(1<<(b)))
+#define BIT_FLIP(a,b) ((a) ^= (1<<(b)))
+#define BIT_CHECK(a,b) ((a) & (1<<(b)))
+#define LOG2(X) ((unsigned) (8*sizeof (unsigned long long) - __builtin_clzll((X)) - 1))
+
 #define ZV Z V
 #define ZK Z K
 #define ZH Z H

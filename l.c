@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/mman.h>
 #include "l.h"
 int debug=0;
 
@@ -9,10 +10,52 @@ I sizes[10] = {sizeof(G*),sizeof(C),sizeof(G),sizeof(H),sizeof(I),sizeof(J),size
 ZI sz(I t) {R sizes[abs(t)];}
 
 // memory
-ZV* ma(L s) {V* p=malloc(s);memset(p,0,s);R p;}
-ZV* ra(V* p, L s) {R realloc(p, s);}
+G md[2000]={0}; // 0=free not splitted 1=splitted 2=not free
+V *lvs[60]={NULL};
+J SIZE=2048*10;
+
+J up2(J v){
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v++;
+    R v;
+}
+
+V* page_alloc(L bytes) {V* x;
+  for(;;) {
+    x = mmap(0, bytes, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    P(x != MAP_FAILED,x);
+  }
+  R 0;
+}
+
+I buddy_lv_size(I lv) {R SIZE/(1<<lv);}
+I buddy_index(I lv, G* p) {R (1<<lv) + ((G*)p-(G*)lvs[lv])/buddy_lv_size(lv) -1;}
+V buddy_init() {lvs[0]=page_alloc(SIZE);}
+V* buddy_alloc_lv(I lv, L s) {
+  I lv_sz=buddy_lv_size(lv);
+  LO("<%i,%lld, %i>\n",lv,s,lv_sz);
+  if (lvs[lv]==NULL) {lvs[lv]=buddy_alloc_lv(lv-1, s*2);md[buddy_index(lv-1,(G*)lvs[lv])]=1;}
+  for(I i=0;i<(1<<lv)*lv_sz;i+=lv_sz+1) {
+    I ix=buddy_index(lv, (G*)lvs[lv]+i);
+    LO("<%i,%i,%i,%i>\n",i,ix, md[ix],lv);
+    if (md[ix]==0)  {md[ix]=2;LO("found free block:%i\n",lv_sz);R (G*)lvs[lv]+i;}
+    if (md[ix]==1||md[ix]==2) continue;
+  }
+  O("damn\n");
+  R 0;
+}
+V* buddy_alloc(J s) {R buddy_alloc_lv(LOG2(SIZE)-LOG2(up2(s)), up2(s));}
+
+
+ZV* ma(L s) {LO("requested:%i\n",s);V* p=buddy_alloc(s);memset(p,0,s);R p;}
+ZV* ra(V* p, L os, L ns) {V* n=buddy_alloc(ns);memmove(n,p,os);R n;}
 ZK ga(L s) {R ma(sizeof(struct k0)-1+s);}
-ZK rga(K x, L n) {R ra(x, sizeof(struct k0)-1+sz(xt)*n);}
+ZK rga(K x, L n) {R ra(x, sizeof(struct k0)-1+x->n*sz(xt),sizeof(struct k0)-1+sz(xt)*n);}
 
 // atoms
 ZK ka(I t) {K x=ga(0);xt=t;R x;}
@@ -92,7 +135,7 @@ K2(plus) {
   else if(x->t==KI&&y->t==-KI){DO(x->n,kI(x)[i]+=y->i);R x;}
   R 0;}
 K2(minus) {I sub=x->i-y->i;LO("sub = %i\n", sub);R ki(sub);}
-K2(intf) {LO("intf\n");K ls=ktn(KI,x->i);DO(x->i, kI(ls)[i]=i);R ls;}
+K2(intf) {LO("intf\n");K ls=ktn(KI,abs(x->i));I sign=SIGN(x->i);DO(abs(x->i), kI(ls)[i]=(i*sign));R ls;}
 K3(dyad) {LO("dyad: %c\n",y->g);PV* v=&pst[y->g];R (*v->f2)(x,z);}
 K3(monad) {LO("monad: %c\n",x->g);PV* v=&pst[x->g];R (*v->f1)(z);}
 
@@ -167,6 +210,8 @@ V init() {
   pdef(CPLUS,VERB,0,plus,0,0,0);
   pdef(CMINUS,VERB,0,minus,0,0,0);
   pdef(CESCMARK,VERB,intf,0,0,0,0);
+
+  buddy_init();
 }
 
 V repl() {C str[8000]={0};
@@ -177,4 +222,10 @@ V repl() {C str[8000]={0};
   }
 }
 
-I main() {init();repl();}
+I main() {init();repl();
+  K x=ktn(0,0);
+  jk(&x, kp("ciao"));
+
+  Os(kK(x)[0]);
+
+}
