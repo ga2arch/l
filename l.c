@@ -3,48 +3,55 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include "l.h"
-int debug=0;
+int debug=1;
 
 //toolkit
 I sizes[10] = {sizeof(G*),sizeof(C),sizeof(G),sizeof(H),sizeof(I),sizeof(J),sizeof(E),sizeof(F),sizeof(C),sizeof(S)};
 ZI sz(I t) {R sizes[abs(t)];}
 
 // buddy allocator
-G md[2000]={0}; // 0=free not splitted 1=splitted 2=not free
-V *lvs[60]={NULL};
-J SIZE=2048*10;
+typedef struct b0 {V* n;G m[0];} *B; //0=free, 1=splitted, 2=full
 
-J up2(J v){v--,v |= v >> 1,v |= v >> 2,v |= v >> 4,v |= v >> 8,v |= v >> 16,v++;R v;}
-V* pa(L bytes) {V* x;for(;;) {x=mmap(0,bytes,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE,-1,0);P(x!=MAP_FAILED,x);}R 0;}
+I md[60000000]={0}; //0=free 1=split 2=full
+B lvs[6000]={NULL};
+J SIZE=1<<30;
 
-I bls(I lv) {R SIZE/(1<<lv);}                                   // buddy level size
-I bbi(I lv, G* p) {R (1<<lv) + ((G*)p-(G*)lvs[lv])/bls(lv) -1;} // buddy block index
-V bi() {lvs[0]=pa(SIZE);}                                       // buddy init
-V* bal(I lv, L s) {I lv_sz=bls(lv);                             // buddy allocate level
-  LO("<%i,%lld, %i>\n",lv,s,lv_sz);
-  if (lvs[lv]==NULL) {lvs[lv]=bal(lv-1, s*2);md[bbi(lv-1,(G*)lvs[lv])]=1;}
-  for(I i=0;i<(1<<lv)*lv_sz;i+=lv_sz+1) {I ix=bbi(lv, (G*)lvs[lv]+i);
-    LO("<%i,%i,%i,%i>\n",i,ix, md[ix],lv);
-    if (md[ix]==0)  {md[ix]=2;LO("found free block:%i\n",lv_sz);R (G*)lvs[lv]+i;}
-    else if (md[ix]==1||md[ix]==2) continue;
+J up2(J v){v--,v|=v>>1,v|=v>>2,v|=v>>4,v|=v>>8,v|=v>>16,v++;R v;}
+
+J blv(L s) {R LOG2(SIZE)-LOG2(up2(s+sizeof(struct b0)));}
+L bls(J lv) {R SIZE/(1<<lv);}                                   // buddy level size
+L bbi(J lv, G* p) {R (1<<lv)+((G*)p-(G*)lvs[lv])/bls(lv)-1;} // buddy block index
+V bi() {lvs[0]=malloc(SIZE),lvs[0]->n=NULL;}                                       // buddy init
+V* bal(J lv, L s) {B prev,cur;
+  if(lvs[lv]==NULL){lvs[lv]=bal(lv-1,1),lvs[lv]->n=(G*)lvs[lv]+bls(lv);}
+  prev=NULL,cur=lvs[lv];
+  for(I i=0;i<(1<<lv);i++){L ix;I cs;
+    if(cur==NULL) {LO("searching block to split\n");cur=bal(lv-1,1);if(prev!=NULL)prev->n=cur;}
+    ix=bbi(lv,cur),cs=md[ix];
+    LO("lv:%i - s:%i - ix:%llu\n",lv, cs, ix);
+    if(cs==0) {md[ix]=s;LO("found free block\n");R cur->m;};
+    if(cs==1||cs==2) prev=cur,cur=cur->n;
   }
   LO("out of memory\n");
   R 0;
 }
-V* ba(J s) {R bal(LOG2(SIZE)-LOG2(up2(s)), up2(s));}            // buddy allocate
+V* ba(L s) {LO("requested:%i\n",blv(s));V* p=bal(blv(s),2);memset(p,0,s);R p;}            // buddy allocate
+V bfree(V* p, L s) {J lv;L ix;
+  lv=blv(s),ix=bbi(lv,p),md[ix]=0;
+  O("freeing memory: lv:%i, ix:%llu\n",lv,ix);}
 
-ZV* ma(L s) {LO("requested:%i\n",s);V* p=ba(s);memset(p,0,s);R p;}
-ZV* ra(V* p, L os, L ns) {V* n=ba(ns);memmove(n,p,os);R n;}
+ZV* ma(L s) {R ba(s);}
+ZV* ra(V* p, L os, L ns) {LO("relloc:<%i,%i>\n",os,ns);G* n=ba(ns);memmove(n,p,os);R n;}
 ZK ga(L s) {R ma(sizeof(struct k0)-1+s);}
 ZK rga(K x, L n) {R ra(x, sizeof(struct k0)-1+x->n*sz(xt),sizeof(struct k0)-1+sz(xt)*n);}
 
 // atoms
 ZK ka(I t) {K x=ga(0);xt=t;R x;}
-ZK kc(C c) {K x=ka(-KC); x->g=(G)c;R x;}
-ZK ki(I i) {K x=ka(-KI); x->i=i;R x;}
+ZK kc(C c) {K x=ka(-KC);x->g=(G)c;R x;}
+ZK ki(I i) {K x=ka(-KI);x->i=i;R x;}
 
 // lists
-ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n),xt=t,xn=n;R x;};
+ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n);xt=t,xn=n;R x;};
 ZK kpn(S s, I n) {K x=ktn(KC,n);memcpy((S)xG,s,n);R x;}
 ZK kp(S s) {R kpn(s,strlen(s));}
 ZK ja(K* x, V* y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],y,sz((*x)->t));(*x)->n++;R *x;}
@@ -96,15 +103,23 @@ PV pst[256]={0};
 I ttype[] = {0,0,0,0,INT,0,0,0,0,CHAR};
 ZI pt(I t) {R ttype[abs(t)];}
 
-K wordil(K* px) {I i=0,s=0,e=0,b=0,ix=0;ST st;K x;K ixs;K bs;
-  js(px, ";");x=*px;ixs=ktn(KI,xn*2),bs=ktn(0,0);
-  for(;i<xn;i++) {
+K wordil(K x) {I i=0,s=0,e=0,b=0,ix=0;ST st;K ixs;K bs;
+  OS(x);
+  I n=xn;
+  ixs=ktn(KI,n),bs=ktn(0,10);I bi=0;
+  for(;i<n;i++) {
+    O("n:%i\n",xn);
     st=state[s][ctype[xG[i]]], s=st.n, e=st.e;
     if (e==EI) {kI(ixs)[ix]=b, kI(ixs)[ix+1]=i-1, b=i, ix+=2;}
     else if (e==EN) b=i;
     LO("i:%i - state: %i - effect:%i - b:%i - ix:%i - c:%c - %i\n", i,s,e,b,ix,xG[i],ctype[xG[i]]);
-    if(s==SO&&SEMICOLON==xG[i]){LO("found ; adding block\n");ixs->n=ix;jk(&bs, ixs);ixs=ktn(KI,xn*2);ix=0;}
+    if(s==SO&&SEMICOLON==xG[i]){LO("found ; adding block\n");ixs->n=ix;
+      ;kK(bs)[bi++]=ixs;DO(ixs->n, LO("%i",kI(ixs)[i]))LO("\n");ixs=ktn(KI,n*2);ix=0;}
   }
+  bs->n=bi;
+  O("here-%i\n",bs->n);
+  OS(x);
+  DO(bs->n, K ls=kK(bs)[i];DO(ls->n, LO("<%i>",kI(ls)[i]))LO("\n"););
   R bs;
 }
 
@@ -116,7 +131,7 @@ K2(plus) {
   else if(x->t==KI&&y->t==-KI){DO(x->n,kI(x)[i]+=y->i);R x;}
   R 0;}
 K2(minus) {I sub=x->i-y->i;LO("sub = %i\n", sub);R ki(sub);}
-K2(intf) {LO("intf\n");K ls=ktn(KI,abs(x->i));I sign=SIGN(x->i);DO(abs(x->i), kI(ls)[i]=(i*sign));R ls;}
+K2(intf) {LO("intf:%i\n",abs(x->i));K ls=ktn(KI,abs(x->i));I sign=SIGN(x->i);DO(abs(x->i), kI(ls)[i]=(i*sign));R ls;}
 K3(dyad) {LO("dyad: %c\n",y->g);PV* v=&pst[y->g];R (*v->f2)(x,z);}
 K3(monad) {LO("monad: %c\n",x->g);PV* v=&pst[x->g];R (*v->f1)(z);}
 
@@ -138,7 +153,9 @@ PT cases[] = {
   EDGE+VNA,  ANY,        VERB, NOUN, monad, 2, 3
 };
 
-K enqueue(K s, K bs) {K res=ktn(0,0);;
+K enqueue(K s, K bs) {K res=ktn(0,10);
+  OS(s);
+  O("%c\n",kG(s)[0]);
   DO(bs->n, K ixs=kK(bs)[i];DO(ixs->n, LO("%i",kI(ixs)[i]))LO("\n"););
   for(I b=0;b<bs->n;b++) {I top=0;SQ stack[8000]={0};K ixs=kK(bs)[b];
     for(I i=ixs->n-1;i>=0;i-=2) {S tk;L len=0;K r;I ct=-1, ws=4, ret=0;
@@ -176,7 +193,7 @@ K enqueue(K s, K bs) {K res=ktn(0,0);;
         if(ret&&i==1)for(;top<4;top++)stack[top].t=MARK,stack[top].e=kp(";");
       } while (i==1&&ret);
     }
-    jk(&res, stack[0].e);
+    kK(res)[b]=stack[0].e;
   }
   R res;
 }
@@ -184,7 +201,7 @@ K enqueue(K s, K bs) {K res=ktn(0,0);;
 V show(K e) {
   if(e==0) R;
   if(e->t==-KI)O("%i\n", e->i);
-  else if(e->t==KI){DO(e->n,O("%i ", kI(e)[i]));O("\n");};
+  else if(e->t==KI){O("show list of size:%i\n",e->n);DO(e->n,O("%i ", kI(e)[i]));O("\n");};
 }
 
 V init() {
@@ -198,15 +215,23 @@ V init() {
 V repl() {C str[8000]={0};
   O(">> ");
   while(fgets(str,8000,stdin)){K x, rs;
-    x=kp(str),x->n-=1,rs=enqueue(x,wordil(&x));
+    x=kp(str);x->n--;rs=enqueue(x,wordil(x));
     DO(rs->n, show(kK(rs)[i]));O(">> ");
+    bfree(lvs[0],SIZE);
   }
 }
 
 I main() {init();repl();
   K x=ktn(0,0);
   jk(&x, kp("ciao"));
-
-  Os(kK(x)[0]);
+  for(I i=0;i<10;i++) {
+    K y=ktn(KI,200);
+    DO(200, kI(y)[i]=i);
+    jk(&x, y);
+  }
+  for(I i=0;i<10;i++){
+    K z=kK(x)[i];
+    O("show list of size:%i\n",z->n);DO(z->n,O("%i ", kI(z)[i]));O("\n");
+  }
 
 }
