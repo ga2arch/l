@@ -56,7 +56,7 @@ ZV* ra(V* p, L os, L ns) {V* n=ba(ns);memmove(n,p,os);R n;}
 
 ZK ga(L s) {R ma(sizeof(struct k0)+s);}
 ZK rga(K x, L n) {R ra(x, sizeof(struct k0)+x->n*sz(xt),sizeof(struct k0)+sz(xt)*n);}
-ZV gf(K x) {bf(x,sizeof(struct k0)+xn*sz(xt));}
+ZV gf(K x) {L s=sizeof(struct k0);if(xt<0)s+=xn*sz(xt);bf(x,s);}
 
 // atoms
 ZK ka(I t) {K x=ga(0);xt=t;R x;}
