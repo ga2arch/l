@@ -13,7 +13,7 @@ int debug=0;
 #define IX(p,lv,m,ts) (((p)-(m))/(SLV(lv,ts)))
 
 typedef struct b0 {struct b0* p;struct b0* n;} *B;
-L SIZE=(1UL<<20); // 1mb
+L SIZE=(1UL<<20)*2; // 1mb
 V* mem;
 V* fl[32]={NULL};
 
@@ -28,12 +28,11 @@ ZV* bal(L lv) {B bl;
   else fl[lv]=NULL;
   R bl;
 }
-ZV* ba(L s) {O("requested:%llu - %llu",s,LV(s,SIZE));R bal(LV(s,SIZE));}
+ZV* ba(L s) {LO("requested:%llu - %llu\n",s,LV(s,SIZE));R bal(LV(s,SIZE));}
 ZV bfl(V* p,L lv) {L ix,lvs;G* buddy;B tmp,bl;I found=0;
   ix=IX(p,lv,mem,SIZE),lvs=SLV(lv,SIZE);
   LO("freeing lv:%llu - ix:%llu - p:%p\n",lv,ix,p);
-  if((ix&1)==0) buddy=(G*)p+lvs;
-  else          buddy=(G*)p-lvs;
+  $((ix&1)==0, buddy=(G*)p+lvs, buddy=(G*)p-lvs);
   tmp=fl[lv];
   while(tmp) {found=(G*)tmp==buddy;if(tmp->n==NULL)break;tmp=tmp->n;}
   if(found) {B prev,next;
