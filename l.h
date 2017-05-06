@@ -17,13 +17,14 @@
 #define BIT_CLEAR(a,b) ((a) &= ~(1<<(b)))
 #define BIT_FLIP(a,b) ((a) ^= (1<<(b)))
 #define BIT_CHECK(a,b) ((a) & (1<<(b)))
-#define LOG2(X) ((unsigned) (8*sizeof (unsigned long long) - __builtin_clzll((X)) - 1))
+#define LOG2(X) ((unsigned) (8*sizeof (L) - __builtin_clzll((X)) - 1))
 
 #define ZV Z V
 #define ZK Z K
 #define ZH Z H
 #define ZI Z I
 #define ZJ Z J
+#define ZL Z L
 #define ZE Z E
 #define ZF Z F
 #define ZC Z C
