@@ -4,16 +4,16 @@
 #include <sys/mman.h>
 #include <math.h>
 #include "l.h"
-int debug=0;
+int debug=1;
 
 //buddy
-#define LV(s,ts)      (LOG2((ts))-LOG2(np2((s))))
+#define LV(s,ts)      (LOG2(ts/np2((s))))
 #define BL(lv)        (1<<(lv))
 #define SLV(lv,ts)    ((ts)/BL(lv))
 #define IX(p,lv,m,ts) (((p)-(m))/(SLV(lv,ts)))
 
 typedef struct b0 {struct b0* p;struct b0* n;} *B;
-L SIZE=1UL<<20; // 1mb
+L SIZE=(1UL<<20)*2; // 1mb
 V* mem;
 V* fl[32]={NULL};
 
@@ -28,7 +28,7 @@ ZV* bal(L lv) {B node;
   else fl[lv]=NULL;
   R node;
 }
-ZV* ba(L s) {R bal(LV(s,SIZE));}
+ZV* ba(L s) {O("requested:%llu - %llu",s,LV(s,SIZE));R bal(LV(s,SIZE));}
 ZV bfl(V* p,L lv) {L ix,lvs;G* buddy;B tmp,bl;I found=0;
   ix=IX(p,lv,mem,SIZE),lvs=SLV(lv,SIZE);
   LO("freeing lv:%llu - ix:%llu - p:%p\n",lv,ix,p);
@@ -227,17 +227,10 @@ V repl() {C str[8000]={0};
   }
 }
 
-I main() {init();repl();
-  K x=ktn(0,0);
-  jk(&x, kp("ciao"));
-  for(I i=0;i<10;i++) {
-    K y=ktn(KI,200);
-    DO(200, kI(y)[i]=i);
-    jk(&x, y);
-  }
-  for(I i=0;i<10;i++){
-    K z=kK(x)[i];
-    LO("show list of size:%llu\n",z->n);DO(z->n,O("%i ", kI(z)[i]));O("\n");
-  }
+I main() {init();//repl();
+  K y=ktn(KI,20000);
+  K z=ktn(KI,20000);
+  DO(2000, kI(y)[i]=i);
+  LO("show list of size:%llu\n",y->n);DO(y->n,O("%i ", kI(y)[i]));O("\n");
 
 }
