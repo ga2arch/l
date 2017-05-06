@@ -14,23 +14,23 @@ int debug=0;
 
 typedef struct b0 {struct b0* p;struct b0* n;} *B;
 L SIZE=1UL<<20; // 1mb
-V* m;
+V* mem;
 V* fl[32]={NULL};
 
 ZL np2(L x){R (x-1ULL)<<((int)log2(x-1));}
-ZV binit() {m=malloc(SIZE);memset(m,0,SIZE);fl[0]=m,((B)fl[0])->p=((B)fl[0])->n=NULL;}
+ZV binit() {mem=malloc(SIZE);memset(mem,0,SIZE);fl[0]=mem,((B)fl[0])->p=((B)fl[0])->n=NULL;}
 ZV* bal(L lv) {B node;
   if(lv==0&&fl[lv]==NULL){O("out of memory\n");R 0;}
   if(fl[lv]==NULL) {V* m;B r;m=bal(lv-1),r=m+SLV(lv,SIZE);r->n=r->p=NULL,fl[lv]=r;R m;}
   node=(B)fl[lv];
-  LO("allocate: lv:%llu - ix:%llu\n",lv,IX((V*)node,lv,m,SIZE));
+  LO("allocate: lv:%llu - ix:%llu\n",lv,IX((V*)node,lv,mem,SIZE));
   if(node->n)fl[lv]=node->n,((B)fl[lv])->p=NULL;
   else fl[lv]=NULL;
   R node;
 }
 ZV* ba(L s) {R bal(LV(s,SIZE));}
 ZV bfl(V* p,L lv) {L ix,lvs;G* buddy;B tmp,bl;I found=0;
-  ix=IX(p,lv,m,SIZE),lvs=SLV(lv,SIZE);
+  ix=IX(p,lv,mem,SIZE),lvs=SLV(lv,SIZE);
   LO("freeing lv:%llu - ix:%llu - p:%p\n",lv,ix,p);
   if((ix&1)==0) buddy=(G*)p+lvs;
   else          buddy=(G*)p-lvs;
@@ -52,12 +52,13 @@ ZI sz(I t) {R sizes[abs(t)];}
 
 //ZV* ma(L s) {V* v=malloc(s);memset(v,0,s);R v;}
 //ZV* ra(V* p, L os, L ns) {R realloc(p, ns);}
+
 ZV* ma(L s) {V* v=ba(s);memset(v,0,s);R v;}
 ZV* ra(V* p, L os, L ns) {V* n=ba(ns);memmove(n,p,os);R n;}
 
 ZK ga(L s) {R ma(sizeof(struct k0)+s);}
 ZK rga(K x, L n) {R ra(x, sizeof(struct k0)+x->n*sz(xt),sizeof(struct k0)+sz(xt)*n);}
-ZV rfa(K x) {bf(x,sizeof(struct k0)+xn*sz(xt));}
+ZV gf(K x) {bf(x,sizeof(struct k0)+xn*sz(xt));}
 
 // atoms
 ZK ka(I t) {K x=ga(0);xt=t;R x;}
@@ -196,10 +197,10 @@ K enqueue(K s, K bs) {K res=ktn(0,0);
         if(ret&&i==1)for(;top<4;top++)stack[top].t=MARK,stack[top].e=kp(";");
       } while (i==1&&ret);
     }
-    rfa(ixs);
+    gf(ixs);
     jk(&res,stack[0].e);
   }
-  rfa(s);
+  gf(s);
   R res;
 }
 
@@ -222,7 +223,7 @@ V repl() {C str[8000]={0};
   while(fgets(str,8000,stdin)){K x, rs;
     x=kp(str);x->n--;js(&x,";");rs=enqueue(x,wordil(x));
     DO(rs->n, show(kK(rs)[i]));O(">> ");
-    rfa(rs);
+    gf(rs);
   }
 }
 
