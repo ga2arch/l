@@ -4,7 +4,7 @@
 #include <sys/mman.h>
 #include <math.h>
 #include "l.h"
-int debug=1;
+int debug=0;
 
 //buddy
 #define LV(s,ts)      (LOG2(ts/np2((s))))
