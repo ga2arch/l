@@ -17,7 +17,7 @@ L SIZE=(1UL<<20)*2; // 1mb
 V* mem;
 V* fl[32]={NULL};
 
-ZL np2(L x){R (x-1ULL)<<((int)log2(x-1));}
+ZL np2(L v){v--;v|=v>>1;v|=v>>2;v|=v>>4;v|=v>>8;v|=v>>16;v|=v>>32;v++;R v;}
 ZV binit() {mem=malloc(SIZE);memset(mem,0,SIZE);fl[0]=mem,((B)fl[0])->p=((B)fl[0])->n=NULL;}
 ZV* bal(L lv) {B node;
   if(lv==0&&fl[lv]==NULL){O("out of memory\n");R 0;}
@@ -216,6 +216,7 @@ V init() {
   pdef(CESCMARK,VERB,intf,0,0,0,0);
 
   binit();
+  O("allocated %llu\n",SIZE);
 }
 
 V repl() {C str[8000]={0};
@@ -227,7 +228,7 @@ V repl() {C str[8000]={0};
   }
 }
 
-I main() {init();//repl();
+I main() {init();repl();
   K y=ktn(KI,20000);
   K z=ktn(KI,20000);
   DO(2000, kI(y)[i]=i);
