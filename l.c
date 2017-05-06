@@ -36,9 +36,9 @@ ZV bfl(V* p,L lv) {L ix,lvs;G* buddy;B tmp,bl;I found=0;
   else          buddy=(G*)p-lvs;
   tmp=fl[lv];
   while(tmp) {found=(G*)tmp==buddy;if(tmp->n==NULL)break;tmp=tmp->n;}
-  if(found) {B p,n;
-    bl=(B)buddy,p=bl->p,n=bl->n;
-    if(p) p->n=n;if(n) n->p=p;
+  if(found) {B prev,next;
+    bl=(B)buddy,prev=bl->p,next=bl->n;
+    if(prev) prev->n=next;if(next) next->p=prev;
     $((ix&1)==0,bfl(p, lv-1),bfl(buddy,lv-1));R;}
   bl=(B)p,bl->p=tmp,bl->n=NULL;
   $(tmp, tmp->n=p, tmp=p)
