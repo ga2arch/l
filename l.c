@@ -13,20 +13,20 @@ int debug=0;
 #define IX(p,lv,m,ts) (((p)-(m))/(SLV(lv,ts)))
 
 typedef struct b0 {struct b0* p;struct b0* n;} *B;
-L SIZE=(1UL<<20)*2; // 1mb
+L SIZE=(1UL<<20); // 1mb
 V* mem;
 V* fl[32]={NULL};
 
 ZL np2(L v){v--;v|=v>>1;v|=v>>2;v|=v>>4;v|=v>>8;v|=v>>16;v|=v>>32;v++;R v;}
 ZV binit() {mem=malloc(SIZE);memset(mem,0,SIZE);fl[0]=mem,((B)fl[0])->p=((B)fl[0])->n=NULL;}
-ZV* bal(L lv) {B node;
+ZV* bal(L lv) {B bl;
   if(lv==0&&fl[lv]==NULL){O("out of memory\n");R 0;}
   if(fl[lv]==NULL) {V* m;B r;m=bal(lv-1),r=m+SLV(lv,SIZE);r->n=r->p=NULL,fl[lv]=r;R m;}
-  node=(B)fl[lv];
-  LO("allocate: lv:%llu - ix:%llu\n",lv,IX((V*)node,lv,mem,SIZE));
-  if(node->n)fl[lv]=node->n,((B)fl[lv])->p=NULL;
+  bl=(B)fl[lv];
+  LO("allocate: lv:%llu - ix:%llu\n",lv,IX((V*)bl,lv,mem,SIZE));
+  if(bl->n)fl[lv]=bl->n,((B)fl[lv])->p=NULL;
   else fl[lv]=NULL;
-  R node;
+  R bl;
 }
 ZV* ba(L s) {O("requested:%llu - %llu",s,LV(s,SIZE));R bal(LV(s,SIZE));}
 ZV bfl(V* p,L lv) {L ix,lvs;G* buddy;B tmp,bl;I found=0;
