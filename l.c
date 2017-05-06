@@ -32,8 +32,7 @@ ZV* ba(L s) {LO("requested:%llu - %llu\n",s,LV(s,SIZE));R bal(LV(s,SIZE));}
 ZV bfl(V* p,L lv) {L ix,lvs;G* buddy;B tmp,bl;I found=0;
   ix=IX(p,lv,mem,SIZE),lvs=SLV(lv,SIZE);
   LO("freeing lv:%llu - ix:%llu - p:%p\n",lv,ix,p);
-  $((ix&1)==0, buddy=(G*)p+lvs, buddy=(G*)p-lvs);
-  tmp=fl[lv];
+  $((ix&1)==0, buddy=(G*)p+lvs, buddy=(G*)p-lvs);tmp=fl[lv];
   while(tmp) {found=(G*)tmp==buddy;if(tmp->n==NULL)break;tmp=tmp->n;}
   if(found) {B prev,next;
     bl=(B)buddy,prev=bl->p,next=bl->n;
@@ -49,8 +48,8 @@ ZV bf(V* p,L s) {bfl(p,LV(s,SIZE));}
 I sizes[10] = {sizeof(G*),sizeof(C),sizeof(G),sizeof(H),sizeof(I),sizeof(J),sizeof(E),sizeof(F),sizeof(C),sizeof(S)};
 ZI sz(I t) {R sizes[abs(t)];}
 
-//ZV* ma(L s) {V* v=malloc(s);memset(v,0,s);R v;}
-//ZV* ra(V* p, L os, L ns) {R realloc(p, ns);}
+/* ZV* ma(L s) {V* v=malloc(s);memset(v,0,s);R v;} */
+/* ZV* ra(V* p, L os, L ns) {R realloc(p, ns);} */
 
 ZV* ma(L s) {V* v=ba(s);memset(v,0,s);R v;}
 ZV* ra(V* p, L os, L ns) {V* n=ba(ns);memmove(n,p,os);R n;}
@@ -118,25 +117,37 @@ I ttype[] = {0,0,0,0,INT,0,0,0,0,CHAR};
 ZI pt(I t) {R ttype[abs(t)];}
 
 K wordil(K x) {I i=0,s=0,e=0,b=0,ix=0;ST st;K ixs;K bs;
-  ixs=ktn(KI,xn),bs=ktn(0,0);
+  ixs=ktn(KI,xn*2),bs=ktn(0,0);
   for(;i<xn;i++) {
     st=state[s][ctype[xG[i]]], s=st.n, e=st.e;
     if (e==EI) {kI(ixs)[ix]=b, kI(ixs)[ix+1]=i-1, b=i, ix+=2;}
     else if (e==EN) b=i;
-    LO("i:%i - state: %i - effect:%i - b:%i - ix:%i - c:%c - %i\n", i,s,e,b,ix,xG[i],ctype[xG[i]]);
-    if(s==SO&&SEMICOLON==xG[i]){LO("found ; adding block\n");ixs->n=ix;jk(&bs,ixs);ixs=ktn(KI,xn*2);ix=0;}
+    LO("i:%i - state: %i - effect:%i - b:%i - ix:%i - c:%c - %i\n",i,s,e,b,ix,xG[i],ctype[xG[i]]);
+    if(s==SO&&SEMICOLON==xG[i]){LO("found ; adding block\n");
+      ixs->n=ix;jk(&bs,ixs);ixs=ktn(KI,xn*2);ix=0;}
   }
   R bs;
 }
 
 K3(is)   {Os(x);LO(" is %i\n", z->i);R 0;}
 K2(plus) {
-  LO("<%i,%i>",x->t, y->t);
   if(x->t==-KI&&y->t==-KI)R ki(x->i+y->i);
   else if(x->t==-KI&&y->t==KI){DO(y->n,kI(y)[i]+=x->i);R y;}
   else if(x->t==KI&&y->t==-KI){DO(x->n,kI(x)[i]+=y->i);R x;}
   R 0;}
-K2(minus) {I sub=x->i-y->i;LO("sub = %i\n", sub);R ki(sub);}
+K2(plus1) {
+  if(x->t==-KI)R ki(abs(x->i));
+  else if(x->t==KI){DO(x->n,kI(x)[i]=abs(kI(x)[i]));R x;}
+  R 0;}
+K2(minus) {
+  if(x->t==-KI&&y->t==-KI)R ki(x->i-y->i);
+  else if(x->t==-KI&&y->t==KI){DO(y->n,kI(y)[i]-=x->i);R y;}
+  else if(x->t==KI&&y->t==-KI){DO(x->n,kI(x)[i]-=y->i);R x;}
+  R 0;}
+K2(minus1) {
+  if(x->t==-KI)R ki(-x->i);
+  else if(x->t==KI){DO(x->n,kI(x)[i]=-kI(x)[i]);R x;}
+  R 0;}
 K2(intf) {LO("intf:%i\n",abs(x->i));K ls=ktn(KI,abs(x->i));I sign=SIGN(x->i);DO(abs(x->i), kI(ls)[i]=(i*sign));R ls;}
 K3(dyad) {LO("dyad: %c\n",y->g);PV* v=&pst[y->g];R (*v->f2)(x,z);}
 K3(monad) {LO("monad: %c\n",x->g);PV* v=&pst[x->g];R (*v->f1)(z);}
@@ -160,6 +171,7 @@ PT cases[] = {
 };
 
 K enqueue(K s, K bs) {K res=ktn(0,0);
+  DO(bs->n, K ixs=kK(bs)[i];DO(ixs->n, LO("%i",kI(ixs)[i]))LO("\n"););
   for(I b=0;b<bs->n;b++) {I top=0;SQ stack[8000]={0};K ixs=kK(bs)[b];
     for(I i=ixs->n-1;i>=0;i-=2) {S tk;L len=0;K r;I ct=-1, ws=4, ret=0;
       tk=(S)kC(s)+kI(ixs)[i-1], len=kI(ixs)[i]-kI(ixs)[i-1]+1, ct=ctype[tk[0]];
@@ -210,8 +222,8 @@ V show(K e) {
 }
 
 V init() {
-  pdef(CPLUS,VERB,0,plus,0,0,0);
-  pdef(CMINUS,VERB,0,minus,0,0,0);
+  pdef(CPLUS,VERB,plus1,plus,0,0,0);
+  pdef(CMINUS,VERB,minus1,minus,0,0,0);
   pdef(CESCMARK,VERB,intf,0,0,0,0);
 
   binit();
