@@ -96,7 +96,7 @@ typedef void V;
 typedef struct k0{
   signed char t;
   I r;
-  union{G g;H h;I i;J j;E e;F f;S s;struct k0*k;struct{L n;G G0[0];};};
+  union{G g;H h;I i;J j;E e;F f;S s;struct k0*k;struct{L n;G G0[1];};};
 }*K;
 /* t: id of the type
    n: number of atoms */

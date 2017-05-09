@@ -12,35 +12,37 @@ int debug=0;
 #define SLV(lv,ts)    ((ts)/BL(lv))
 #define IX(p,lv,m,ts) (((p)-(m))/(SLV(lv,ts)))
 
-typedef struct b0 {struct b0* p;struct b0* n;} *B;
+typedef struct b0 {struct b0* n;} *B;
+typedef struct bl0 {struct bl0* p;struct bl0* n;} *BL;
 L SIZE=(1UL<<20)*2; // 1mb
 V* mem;
-V* fl[32]={NULL};
+V* lvs[32]={NULL};
+
 
 ZL np2(L v){v--;v|=v>>1;v|=v>>2;v|=v>>4;v|=v>>8;v|=v>>16;v|=v>>32;v++;R v;}
-ZV binit() {mem=malloc(SIZE);memset(mem,0,SIZE);fl[0]=mem,((B)fl[0])->p=((B)fl[0])->n=NULL;}
-ZV* bal(L lv) {B bl;
-  if(lv==0&&fl[lv]==NULL){O("out of memory\n");R 0;}
-  if(fl[lv]==NULL) {V* m;B r;m=bal(lv-1),r=m+SLV(lv,SIZE);r->n=r->p=NULL,fl[lv]=r;R m;}
-  bl=(B)fl[lv];
+ZV binit() {posix_memalign(&mem,16,SIZE);memset(mem,0,SIZE);lvs[0]=mem,((BL)lvs[0])->p=((BL)lvs[0])->n=NULL;}
+ZV* bal(L lv) {BL bl;
+  if(lv==0&&lvs[lv]==NULL){O("out of memory\n");R 0;}
+  if(lvs[lv]==NULL) {V* m;BL r;m=bal(lv-1),r=m+SLV(lv,SIZE);r->n=r->p=NULL,lvs[lv]=r;R m;}
+  bl=(BL)lvs[lv];
   LO("allocate: lv:%llu - ix:%llu\n",lv,IX((V*)bl,lv,mem,SIZE));
-  if(bl->n)fl[lv]=bl->n,((B)fl[lv])->p=NULL;
-  else fl[lv]=NULL;
+  if(bl->n)lvs[lv]=bl->n,((BL)lvs[lv])->p=NULL;
+  else lvs[lv]=NULL;
   R bl;
 }
 ZV* ba(L s) {LO("requested:%llu - %llu\n",s,LV(s,SIZE));R bal(LV(s,SIZE));}
-ZV bfl(V* p,L lv) {L ix,lvs;G* buddy;B tmp,bl;I found=0;
-  ix=IX(p,lv,mem,SIZE),lvs=SLV(lv,SIZE);
+ZV bfl(V* p,L lv) {L ix,size;G* buddy;BL tmp,bl;I found=0;
+  ix=IX(p,lv,mem,SIZE),size=SLV(lv,SIZE);
   LO("freeing lv:%llu - ix:%llu - p:%p\n",lv,ix,p);
-  $((ix&1)==0, buddy=(G*)p+lvs, buddy=(G*)p-lvs);tmp=fl[lv];
+  $((ix&1)==0, buddy=(G*)p+size, buddy=(G*)p-size);tmp=lvs[lv];
   while(tmp) {found=(G*)tmp==buddy;if(tmp->n==NULL)break;tmp=tmp->n;}
-  if(found) {B prev,next;
-    bl=(B)buddy,prev=bl->p,next=bl->n;
+  if(found) {O("found buddy\n");BL prev,next;
+    bl=(BL)buddy,prev=bl->p,next=bl->n;
     if(prev) prev->n=next;if(next) next->p=prev;
     $((ix&1)==0,bfl(p, lv-1),bfl(buddy,lv-1));R;}
-  bl=(B)p,bl->p=tmp,bl->n=NULL;
+  bl=(BL)p,bl->p=tmp,bl->n=NULL;
   $(tmp, tmp->n=p, tmp=p)
-  fl[lv]=tmp;
+  lvs[lv]=tmp;
 }
 ZV bf(V* p,L s) {bfl(p,LV(s,SIZE));}
 
@@ -52,11 +54,11 @@ ZI sz(I t) {R sizes[abs(t)];}
 /* ZV* ra(V* p, L os, L ns) {R realloc(p, ns);} */
 
 ZV* ma(L s) {V* v=ba(s);memset(v,0,s);R v;}
-ZV* ra(V* p, L os, L ns) {V* n=ba(ns);memmove(n,p,os);R n;}
+ZV* ra(V* p, L os, L ns) {V* n=ma(ns);memmove(n,p,os);bf(p,os);R n;}
 
-ZK ga(L s) {R ma(sizeof(struct k0)+s);}
-ZK rga(K x, L n) {R ra(x, sizeof(struct k0)+x->n*sz(xt),sizeof(struct k0)+sz(xt)*n);}
-ZV gf(K x) {L s=sizeof(struct k0);if(xt<0)s+=xn*sz(xt);bf(x,s);}
+ZK ga(L s) {R ma(sizeof(struct k0)-1+s);}
+ZK rga(K x, L n) {R ra(x, sizeof(struct k0)-1+xn*sz(xt),sizeof(struct k0)-1+sz(xt)*n);}
+ZV gf(K x) {L s=sizeof(struct k0);if(xt<1)s+=-1+xn*sz(xt);bf(x,s);}
 
 // atoms
 ZK ka(I t) {K x=ga(0);xt=t;R x;}
@@ -123,8 +125,7 @@ K wordil(K x) {I i=0,s=0,e=0,b=0,ix=0;ST st;K ixs;K bs;
     if (e==EI) {kI(ixs)[ix]=b, kI(ixs)[ix+1]=i-1, b=i, ix+=2;}
     else if (e==EN) b=i;
     LO("i:%i - state: %i - effect:%i - b:%i - ix:%i - c:%c - %i\n",i,s,e,b,ix,xG[i],ctype[xG[i]]);
-    if(s==SO&&SEMICOLON==xG[i]){LO("found ; adding block\n");
-      ixs->n=ix;jk(&bs,ixs);ixs=ktn(KI,xn*2);ix=0;}
+    if(s==SO&&SEMICOLON==xG[i]){LO("found ; adding block\n");ixs->n=ix;jk(&bs,ixs);ixs=ktn(KI,xn*2);ix=0;}
   }
   R bs;
 }
@@ -153,7 +154,7 @@ K3(dyad) {LO("dyad: %c\n",y->g);PV* v=&pst[y->g];R (*v->f2)(x,z);}
 K3(monad) {LO("monad: %c\n",x->g);PV* v=&pst[x->g];R (*v->f1)(z);}
 
 Z C spell[]={
-  ':',  ';',  '+', '-',      '!',
+  ':',  ';',  '+',   '-',    '!',
   ASGN, MARK, CPLUS, CMINUS, CESCMARK
 };
 C spellin(C c) {DO(sizeof(spell)/2,P(spell[i]==c,spell[i+(sizeof(spell)/2)]));R 0;}
@@ -240,9 +241,10 @@ V repl() {C str[8000]={0};
 }
 
 I main() {init();repl();
-  K y=ktn(KI,20000);
+  K y=ktn(0,0);
   K z=ktn(KI,20000);
-  DO(2000, kI(y)[i]=i);
-  LO("show list of size:%llu\n",y->n);DO(y->n,O("%i ", kI(y)[i]));O("\n");
+  jk(&y,z);
+  DO(2000, kI(kK(y)[0])[i]=i);
+  LO("show list of size:%llu\n",2000);DO(2000,O("%i ", kI(kK(y)[0])[i]));O("\n");
 
 }
