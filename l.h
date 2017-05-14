@@ -17,7 +17,7 @@
 #define BIT_CLEAR(a,b) ((a) &= ~(1<<(b)))
 #define BIT_FLIP(a,b) ((a) ^= (1<<(b)))
 #define BIT_CHECK(a,b) ((a) & (1<<(b)))
-#define LOG2(X) ((L)(8*sizeof (unsigned long long) - __builtin_clzll((X)) - 1))
+#define LOG2(X) ((L)(8*sizeof (L) - __builtin_clzll((X)) - 1))
 
 #define ZV Z V
 #define ZK Z K
@@ -119,6 +119,7 @@ typedef struct k0{
 #define ASGN     '\200'
 #define CPLUS     '+'
 #define CMINUS    '-'
+#define CMUL      '*'
 #define SEMICOLON ';'
 #define CESCMARK  '!'
 

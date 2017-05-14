@@ -17,7 +17,7 @@ typedef struct bl0 {struct bl0* p;struct bl0* n;} *BL;
 L SIZE=(1UL<<20)*2; // 1mb
 V* mem;
 V* lvs[32]={NULL};
-
+B* bs[32]={NULL};
 
 ZL np2(L v){v--;v|=v>>1;v|=v>>2;v|=v>>4;v|=v>>8;v|=v>>16;v|=v>>32;v++;R v;}
 ZV binit() {posix_memalign(&mem,16,SIZE);memset(mem,0,SIZE);lvs[0]=mem,((BL)lvs[0])->p=((BL)lvs[0])->n=NULL;}
@@ -130,32 +130,48 @@ K wordil(K x) {I i=0,s=0,e=0,b=0,ix=0;ST st;K ixs;K bs;
   R bs;
 }
 
-K3(is)   {Os(x);LO(" is %i\n", z->i);R 0;}
-K2(plus) {
-  if(x->t==-KI&&y->t==-KI)R ki(x->i+y->i);
-  else if(x->t==-KI&&y->t==KI){DO(y->n,kI(y)[i]+=x->i);R y;}
-  else if(x->t==KI&&y->t==-KI){DO(x->n,kI(x)[i]+=y->i);R x;}
-  R 0;}
-K2(plus1) {
-  if(x->t==-KI)R ki(abs(x->i));
-  else if(x->t==KI){DO(x->n,kI(x)[i]=abs(kI(x)[i]));R x;}
-  R 0;}
-K2(minus) {
-  if(x->t==-KI&&y->t==-KI)R ki(x->i-y->i);
-  else if(x->t==-KI&&y->t==KI){DO(y->n,kI(y)[i]-=x->i);R y;}
-  else if(x->t==KI&&y->t==-KI){DO(x->n,kI(x)[i]-=y->i);R x;}
-  R 0;}
-K2(minus1) {
-  if(x->t==-KI)R ki(-x->i);
-  else if(x->t==KI){DO(x->n,kI(x)[i]=-kI(x)[i]);R x;}
-  R 0;}
+#define V1M(name, op, XTYPE, ZTYPE, rt) K1(name) {K z;J size=sz(K ## XTYPE);  \
+    if(x->t==-K ## XTYPE)R rt(op(*(XTYPE*)((G*)x+8))); \
+    if(x->t==K ## XTYPE){z=ktn(K ## ZTYPE,x->n); \
+      DO(x->n,*(ZTYPE*)(((G*)z)+16+size*i)=op(*(XTYPE*)(((G*)x)+16+size*i)));R z;} \
+    R 0;                                                                \
+}
+#define V1F(name, op, XTYPE, ZTYPE, rt) K1(name) {K z; op;R z;}
+#define V2(name, op, XTYPE, YTYPE, ZTYPE, rt) K2(name) {K z; \
+    if(x->t==-K ## XTYPE&&y->t==-K ## YTYPE)R rt(*(XTYPE*)((G*)x+8) op *(XTYPE*)((G*)y+8)); \
+    if(x->t==-K ## XTYPE&&y->t==K ## YTYPE){z=ktn(K ## ZTYPE,y->n); \
+      DO(y->n,*(ZTYPE*)(((G*)z)+16+sz(K ## XTYPE)*i)=*(YTYPE*)(((G*)y)+16+sz(K ## XTYPE)*i) op *(XTYPE*)(((G*)x)+8));R z;} \
+    if(x->t==K ## XTYPE&&y->t==-K ## YTYPE){z=ktn(K ## ZTYPE,x->n); \
+      DO(x->n,*(ZTYPE*)(((G*)z)+16+sz(K ## XTYPE)*i)=*(XTYPE*)(((G*)x)+16+sz(K ## XTYPE)*i) op *(YTYPE*)(((G*)y)+8));R z;} \
+    R 0;                                                                \
+}
+
+Z inline I neg(I i) {R -i;}
+
+V1M(absoluteII,llabs,I,I,ki)
+V1M(negateII,neg,I,I,ki)
+V1F(headII,{$(xt>0, z=ki(kI(x)[0]), z=ki(x->i))},I,I,ki)
+
+V2(plusIII,+,I,I,I,ki)
+V2(minusIII,-,I,I,I,ki)
+V2(mulIII,*,I,I,I,ki)
+
+K2(plus)  {P(abs(xt)==KI&&abs(y->t)==KI, plusIII(x,y));}
+K2(minus) {P(abs(xt)==KI&&abs(y->t)==KI, minusIII(x,y));}
+K2(mul)   {P(abs(xt)==KI&&abs(y->t)==KI, mulIII(x,y));}
+
+K2(absolute) {P(abs(xt)==KI, absoluteII(x));}
+K2(negate) {P(abs(xt)==KI, negateII(x));}
+K2(mul1) {P(abs(xt)==KI, headII(x));}
+
 K2(intf) {LO("intf:%i\n",abs(x->i));K ls=ktn(KI,abs(x->i));I sign=SIGN(x->i);DO(abs(x->i), kI(ls)[i]=(i*sign));R ls;}
 K3(dyad) {LO("dyad: %c\n",y->g);PV* v=&pst[y->g];R (*v->f2)(x,z);}
 K3(monad) {LO("monad: %c\n",x->g);PV* v=&pst[x->g];R (*v->f1)(z);}
+K3(is)   {Os(x);LO(" is %i\n", z->i);R 0;}
 
 Z C spell[]={
-  ':',  ';',  '+',   '-',    '!',
-  ASGN, MARK, CPLUS, CMINUS, CESCMARK
+  ':',  ';',  '+',   '-',    '!',      '*',
+  ASGN, MARK, CPLUS, CMINUS, CESCMARK, CMUL
 };
 C spellin(C c) {DO(sizeof(spell)/2,P(spell[i]==c,spell[i+(sizeof(spell)/2)]));R 0;}
 I ds(G id) {DO(sizeof(ctype), P(pst[id].id==id, pst[id].t));R 0;}
@@ -223,8 +239,9 @@ V show(K e) {
 }
 
 V init() {
-  pdef(CPLUS,VERB,plus1,plus,0,0,0);
-  pdef(CMINUS,VERB,minus1,minus,0,0,0);
+  pdef(CPLUS,VERB,absolute,plus,0,0,0);
+  pdef(CMINUS,VERB,negate,minus,0,0,0);
+  pdef(CMUL,VERB,mul1,mul,0,0,0);
   pdef(CESCMARK,VERB,intf,0,0,0,0);
 
   binit();
