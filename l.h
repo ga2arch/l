@@ -52,6 +52,9 @@ typedef void V;
 #define KC 8  // 1 char      char   kC
 #define KS 9  // * symbol    char*  kS
 
+#define XT 98
+#define XD 99
+
 // accessors
 #define K1(f) K f(K x)
 #define K2(f) K f(K x,K y)

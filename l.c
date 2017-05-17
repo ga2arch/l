@@ -49,33 +49,40 @@ ZV bf(V* p,L s) {bfl(p,LV(s,SIZE));}
 //toolkit
 I sizes[10] = {sizeof(G*),sizeof(C),sizeof(G),sizeof(H),sizeof(I),sizeof(J),sizeof(E),sizeof(F),sizeof(C),sizeof(S)};
 ZI sz(I t) {R sizes[abs(t)];}
+K sspool;
 
-/* ZV* ma(L s) {V* v=malloc(s);memset(v,0,s);R v;} */
-/* ZV* ra(V* p, L os, L ns) {R realloc(p, ns);} */
-
+//memory
 ZV* ma(L s) {V* v=ba(s);memset(v,0,s);R v;}
 ZV* ra(V* p, L os, L ns) {V* n=ma(ns);memmove(n,p,os);bf(p,os);R n;}
-
 ZK ga(L s) {R ma(sizeof(struct k0)-1+s);}
 ZK rga(K x, L n) {R ra(x, sizeof(struct k0)-1+xn*sz(xt),sizeof(struct k0)-1+sz(xt)*n);}
 ZV gf(K x) {L s=sizeof(struct k0);if(xt<1)s+=-1+xn*sz(xt);bf(x,s);}
 
-// atoms
+//atoms
 ZK ka(I t) {K x=ga(0);xt=t;R x;}
-ZK kc(C c) {K x=ka(-KC);x->g=(G)c;R x;}
+ZK kc(C c) {K x=ka(-KC);x->g=(C)c;R x;}
 ZK ki(I i) {K x=ka(-KI);x->i=i;R x;}
 
-// lists
+//lists
 ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n);xt=t,xn=n;R x;};
-ZK kpn(S s, I n) {K x=ktn(KC,n);memcpy((S)xG,s,n);R x;}
-ZK kp(S s) {R kpn(s,strlen(s));}
 ZK ja(K* x, V* y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],y,sz((*x)->t));(*x)->n++;R *x;}
 ZK js(K* x, S s) {I n=strlen(s);*x=rga(*x,(*x)->n+n);memcpy(&kG(*x)[(*x)->n],s,n);(*x)->n+=n;R *x;}
-ZK jk(K* x, K y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],&y,sizeof(G*));(*x)->n++;R *x;}
+ZK jk(K* x, K y) {*x=rga(*x,(*x)->n+1);kK(*x)[(*x)->n]=y;(*x)->n++;R *x;}
 ZK jv(K* x, K y) {U((*x)->t==y->t);I n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(*x)[n],&kG(y),y->n*sz(y->t));(*x)->n=n+y->n;R *x;}
 
 //tables
+K xD(K cs, K rs) {K x=ktn(XD,2);kK(x)[0]=cs,kK(x)[1]=rs;R x;}
+K xT(K d) {U(d->t==XT);K x=ga(0);xt=XT;xk=d;R x;}
 
+//strings
+ZK kpn(S s, I n) {K x=ktn(KC,n);memcpy((S)xG,s,n);R x;}
+ZK kp(S s) {R kpn(s,strlen(s));}
+ZS ss(S s) {K sym;DO(sspool->n, sym=kK(sspool)[i];P(strncmp((S)kG(sym),s,sym->n)==0,(S)kG(sym)));sym=kp(s);jk(&sspool,sym);R (S)kG(sym);}
+
+//symbol
+ZK ks(S s) {K x=ka(-KS);x->s=ss(s);R x;}
+ZV sinit() {sspool=ktn(0,0);}
+//
 
 //parser
 #define SB         0    /* blank                           */
@@ -156,13 +163,13 @@ V2(plusIII,+,I,I,I,ki)
 V2(minusIII,-,I,I,I,ki)
 V2(mulIII,*,I,I,I,ki)
 
-K2(plus)  {P(abs(xt)==KI&&abs(y->t)==KI, plusIII(x,y));}
-K2(minus) {P(abs(xt)==KI&&abs(y->t)==KI, minusIII(x,y));}
-K2(mul)   {P(abs(xt)==KI&&abs(y->t)==KI, mulIII(x,y));}
+K2(plus)  {P(abs(xt)==KI&&abs(y->t)==KI, plusIII(x,y));R 0;}
+K2(minus) {P(abs(xt)==KI&&abs(y->t)==KI, minusIII(x,y));R 0;}
+K2(mul)   {P(abs(xt)==KI&&abs(y->t)==KI, mulIII(x,y));R 0;}
 
-K2(absolute) {P(abs(xt)==KI, absoluteII(x));}
-K2(negate) {P(abs(xt)==KI, negateII(x));}
-K2(mul1) {P(abs(xt)==KI, headII(x));}
+K2(absolute) {P(abs(xt)==KI, absoluteII(x));R 0;}
+K2(negate) {P(abs(xt)==KI, negateII(x));R 0;}
+K2(mul1) {P(abs(xt)==KI, headII(x));R 0;}
 
 K2(intf) {LO("intf:%i\n",abs(x->i));K ls=ktn(KI,abs(x->i));I sign=SIGN(x->i);DO(abs(x->i), kI(ls)[i]=(i*sign));R ls;}
 K3(dyad) {LO("dyad: %c\n",y->g);PV* v=&pst[y->g];R (*v->f2)(x,z);}
@@ -245,6 +252,7 @@ V init() {
   pdef(CESCMARK,VERB,intf,0,0,0,0);
 
   binit();
+  sinit();
   O("allocated %llu\n",SIZE);
 }
 
@@ -257,11 +265,9 @@ V repl() {C str[8000]={0};
   }
 }
 
-I main() {init();repl();
-  K y=ktn(0,0);
-  K z=ktn(KI,20000);
-  jk(&y,z);
-  DO(2000, kI(kK(y)[0])[i]=i);
-  LO("show list of size:%llu\n",2000);DO(2000,O("%i ", kI(kK(y)[0])[i]));O("\n");
-
+I main() {init();//repl();
+  K s1=ks("ciao");
+  K s2=ks("ciao");
+  O("%p\n",s1->s);
+  O("%p\n",s2->s);
 }
