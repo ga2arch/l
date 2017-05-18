@@ -61,20 +61,20 @@ ZK r1(K x) {xr++;R x;}
 ZK r0(K x) {xr--;if(xr==0)$(xt!=0,gf(x),DO(xn,r0(xK[i]);R 0;));R x;}
 
 //atoms
-ZK ka(I t) {K x=ga(0);xt=t;R x;}
-ZK kc(C c) {K x=ka(-KC);x->g=(C)c;R x;}
-ZK ki(I i) {K x=ka(-KI);x->i=i;R x;}
+ZK ka(I t) {K x=ga(0);xt=t;R r1(x);}
+ZK kc(C c) {K x=ka(-KC);x->g=(C)c;R r1(x);}
+ZK ki(I i) {K x=ka(-KI);x->i=i;R r1(x);}
 
 //lists
-ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n);xt=t,xn=n;R x;};
+ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n);xt=t,xn=n;R r1(x);};
 ZK ja(K* x, V* y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],y,sz((*x)->t));(*x)->n++;R *x;}
 ZK js(K* x, S s) {I n=strlen(s);*x=rga(*x,(*x)->n+n);memcpy(&kG(*x)[(*x)->n],s,n);(*x)->n+=n;R *x;}
-ZK jk(K* x, K y) {*x=rga(*x,(*x)->n+1);kK(*x)[(*x)->n]=y;(*x)->n++;R *x;}
+ZK jk(K* x, K y) {r1(y);*x=rga(*x,(*x)->n+1);kK(*x)[(*x)->n]=y;(*x)->n++;R *x;}
 ZK jv(K* x, K y) {U((*x)->t==y->t);I n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(*x)[n],&kG(y),y->n*sz(y->t));(*x)->n=n+y->n;R *x;}
 
 //tables
 K xD(K cs, K rs) {K x=ktn(XD,2);kK(x)[0]=cs,kK(x)[1]=rs;R x;}
-K xT(K d) {U(d->t==XT);K x=ga(0);xt=XT;xk=d;R x;}
+K xT(K d) {U(d->t==XT);K x=ga(0);xt=XT;xk=d;R r1(x);}
 
 //strings
 ZK kpn(S s, I n) {K x=ktn(KC,n);memcpy((S)xG,s,n);R x;}
