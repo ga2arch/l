@@ -23,9 +23,9 @@ ZL np2(L v){v--;v|=v>>1;v|=v>>2;v|=v>>4;v|=v>>8;v|=v>>16;v|=v>>32;v++;R v;}
 ZV binit() {posix_memalign(&mem,16,SIZE);lvs[0]=mem,((BL)lvs[0])->p=((BL)lvs[0])->n=NULL;}
 ZV* bal(L lv) {BL bl;
   if(lv==0&&lvs[lv]==NULL){O("out of memory\n");R 0;}
-  if(lvs[lv]==NULL) {V* m;BL r;m=bal(lv-1),r=m+SLV(lv,SIZE);r->n=r->p=NULL,lvs[lv]=r;R m;}
+  if(lvs[lv]==NULL) {V* m;BL r;m=bal(lv-1),r=(BL)((G*)m+SLV(lv,SIZE));r->n=r->p=NULL,lvs[lv]=r;R m;}
   bl=(BL)lvs[lv];
-  LO("allocate: lv:%llu - ix:%llu\n",lv,IX((V*)bl,lv,mem,SIZE));
+  LO("allocate: lv:%llu - ix:%llu - p:%p - pn:%p - pp:%p\n",lv,IX((V*)bl,lv,mem,SIZE),bl,bl->n,bl->p);
   if(bl->n)lvs[lv]=bl->n,((BL)lvs[lv])->p=NULL;
   else lvs[lv]=NULL;
   R bl;
@@ -38,11 +38,11 @@ ZV bfl(V* p,L lv) {L ix,size;G* buddy;BL tmp,bl;I found=0;
   while(tmp) {found=(G*)tmp==buddy;if(tmp->n==NULL)break;tmp=tmp->n;}
   if(found) {LO("found buddy\n");BL prev,next;
     bl=(BL)buddy,prev=bl->p,next=bl->n;
-    if(prev) prev->n=next;if(next) next->p=prev;
+    if(prev) prev->n=next;if(next) next->p=prev;if(!prev&&!next) lvs[lv]=NULL;
     $((ix&1)==0,bfl(p, lv-1),bfl(buddy,lv-1));R;}
   bl=(BL)p,bl->p=tmp,bl->n=NULL;
-  $(tmp, tmp->n=p, tmp=p)
-  lvs[lv]=tmp;
+  $(tmp, tmp->n=bl, lvs[lv]=bl);
+  LO("tmp:%p - p:%p - pn:%p - pp:%p\n",tmp,lvs[lv],((BL)lvs[lv])->n,((BL)lvs[lv])->p);
 }
 ZV bf(V* p,L s) {bfl(p,LV(s,SIZE));}
 
@@ -54,27 +54,27 @@ K sspool;
 //memory
 ZV* ma(L s) {V* v=ba(s);R v;}
 ZV* ra(V* p, L os, L ns) {V* n=ma(ns);memmove(n,p,os);bf(p,os);R n;}
-ZK ga(L s) {R ma(sizeof(struct k0)-1+s);}
-ZK rga(K x, L n) {R ra(x, sizeof(struct k0)-1+xn*sz(xt),sizeof(struct k0)-1+sz(xt)*n);}
-ZV gf(K x) {L s=sizeof(struct k0);if(xt<1)s+=-1+xn*sz(xt);bf(x,s);}
 ZK r1(K x) {xr++;R x;}
+ZK ga(L s) {R r1(ma(sizeof(struct k0)-1+s));}
+ZK rga(K x, L n) {R ra(x, sizeof(struct k0)-1+xn*sz(xt),sizeof(struct k0)-1+sz(xt)*n);}
+ZV gf(K x) {L s=sizeof(struct k0)-1;if(xt<1)s+=xn*sz(xt);bf(x,s);}
 ZK r0(K x) {xr--;if(xr==0)$(xt!=0,gf(x),DO(xn,r0(xK[i]);R 0;));R x;}
 
 //atoms
-ZK ka(I t) {K x=ga(0);xt=t;R r1(x);}
-ZK kc(C c) {K x=ka(-KC);x->g=(C)c;R r1(x);}
-ZK ki(I i) {K x=ka(-KI);x->i=i;R r1(x);}
+ZK ka(I t) {K x=ga(0);xt=t;R x;}
+ZK kc(C c) {K x=ka(-KC);x->g=(C)c;R x;}
+ZK ki(I i) {K x=ka(-KI);x->i=i;R x;}
 
 //lists
-ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n);xt=t,xn=n;R r1(x);};
+ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n);xt=t,xn=n;R x;};
 ZK ja(K* x, V* y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],y,sz((*x)->t));(*x)->n++;R *x;}
 ZK js(K* x, S s) {I n=strlen(s);*x=rga(*x,(*x)->n+n);memcpy(&kG(*x)[(*x)->n],s,n);(*x)->n+=n;R *x;}
-ZK jk(K* x, K y) {r1(y);*x=rga(*x,(*x)->n+1);kK(*x)[(*x)->n]=y;(*x)->n++;R *x;}
+ZK jk(K* x, K y) {*x=rga(*x,(*x)->n+1);kK(*x)[(*x)->n]=r1(y);(*x)->n++;R *x;}
 ZK jv(K* x, K y) {U((*x)->t==y->t);I n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(*x)[n],&kG(y),y->n*sz(y->t));(*x)->n=n+y->n;R *x;}
 
 //tables
 K xD(K cs, K rs) {K x=ktn(XD,2);kK(x)[0]=cs,kK(x)[1]=rs;R x;}
-K xT(K d) {U(d->t==XT);K x=ga(0);xt=XT;xk=d;R r1(x);}
+K xT(K d) {U(d->t==XT);K x=ga(0);xt=XT;xk=d;R x;}
 
 //strings
 ZK kpn(S s, I n) {K x=ktn(KC,n);memcpy((S)xG,s,n);R x;}
@@ -234,10 +234,10 @@ K enqueue(K s, K bs) {K res=ktn(0,0);
         if(ret&&i==1)for(;top<4;top++)stack[top].t=MARK,stack[top].e=kp(";");
       } while (i==1&&ret);
     }
-    gf(ixs);
+    r0(ixs);
     jk(&res,stack[0].e);
   }
-  gf(s);
+  r0(s);
   R res;
 }
 
@@ -263,15 +263,15 @@ V repl() {C str[8000]={0};
   while(fgets(str,8000,stdin)){K x, rs;
     x=kp(str);x->n--;js(&x,";");rs=enqueue(x,wordil(x));
     DO(rs->n, show(kK(rs)[i]));O(">> ");
-    gf(rs);
+    r0(rs);
   }
 }
 
-I main() {init();//repl();
-  K s1=r1(r1(ks("ciao")));
-  K s2=r1(ks("ciao"));
-  K x=r1(ktn(0,0));
-  jk(&x, s1);
+I main() {init();repl();
+  K s1=kp("2+2\n");
+  s1->n--;
+  js(&s1,";");
   r0(s1);
-  r0(x);
+  K s2=kp("2+2");
+  r0(s2);
 }
