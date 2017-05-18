@@ -4,7 +4,7 @@
 #include <sys/mman.h>
 #include <math.h>
 #include "l.h"
-int debug=0;
+int debug=1;
 
 //buddy
 #define LV(s,ts)      (LOG2(ts/np2((s))))
@@ -20,7 +20,7 @@ V* lvs[32]={NULL};
 B* bs[32]={NULL};
 
 ZL np2(L v){v--;v|=v>>1;v|=v>>2;v|=v>>4;v|=v>>8;v|=v>>16;v|=v>>32;v++;R v;}
-ZV binit() {posix_memalign(&mem,16,SIZE);memset(mem,0,SIZE);lvs[0]=mem,((BL)lvs[0])->p=((BL)lvs[0])->n=NULL;}
+ZV binit() {posix_memalign(&mem,16,SIZE);lvs[0]=mem,((BL)lvs[0])->p=((BL)lvs[0])->n=NULL;}
 ZV* bal(L lv) {BL bl;
   if(lv==0&&lvs[lv]==NULL){O("out of memory\n");R 0;}
   if(lvs[lv]==NULL) {V* m;BL r;m=bal(lv-1),r=m+SLV(lv,SIZE);r->n=r->p=NULL,lvs[lv]=r;R m;}
@@ -36,7 +36,7 @@ ZV bfl(V* p,L lv) {L ix,size;G* buddy;BL tmp,bl;I found=0;
   LO("freeing lv:%llu - ix:%llu - p:%p\n",lv,ix,p);
   $((ix&1)==0, buddy=(G*)p+size, buddy=(G*)p-size);tmp=lvs[lv];
   while(tmp) {found=(G*)tmp==buddy;if(tmp->n==NULL)break;tmp=tmp->n;}
-  if(found) {O("found buddy\n");BL prev,next;
+  if(found) {LO("found buddy\n");BL prev,next;
     bl=(BL)buddy,prev=bl->p,next=bl->n;
     if(prev) prev->n=next;if(next) next->p=prev;
     $((ix&1)==0,bfl(p, lv-1),bfl(buddy,lv-1));R;}
@@ -52,11 +52,13 @@ ZI sz(I t) {R sizes[abs(t)];}
 K sspool;
 
 //memory
-ZV* ma(L s) {V* v=ba(s);memset(v,0,s);R v;}
+ZV* ma(L s) {V* v=ba(s);R v;}
 ZV* ra(V* p, L os, L ns) {V* n=ma(ns);memmove(n,p,os);bf(p,os);R n;}
 ZK ga(L s) {R ma(sizeof(struct k0)-1+s);}
 ZK rga(K x, L n) {R ra(x, sizeof(struct k0)-1+xn*sz(xt),sizeof(struct k0)-1+sz(xt)*n);}
 ZV gf(K x) {L s=sizeof(struct k0);if(xt<1)s+=-1+xn*sz(xt);bf(x,s);}
+ZK r1(K x) {xr++;R x;}
+ZK r0(K x) {xr--;if(xr==0)$(xt!=0,gf(x),DO(xn,r0(xK[i]);R 0;));R x;}
 
 //atoms
 ZK ka(I t) {K x=ga(0);xt=t;R x;}
@@ -79,7 +81,7 @@ ZK kpn(S s, I n) {K x=ktn(KC,n);memcpy((S)xG,s,n);R x;}
 ZK kp(S s) {R kpn(s,strlen(s));}
 ZS ss(S s) {K sym;DO(sspool->n, sym=kK(sspool)[i];P(strncmp((S)kG(sym),s,sym->n)==0,(S)kG(sym)));sym=kp(s);jk(&sspool,sym);R (S)kG(sym);}
 
-//symbol
+//symbols
 ZK ks(S s) {K x=ka(-KS);x->s=ss(s);R x;}
 ZV sinit() {sspool=ktn(0,0);}
 //
@@ -266,8 +268,10 @@ V repl() {C str[8000]={0};
 }
 
 I main() {init();//repl();
-  K s1=ks("ciao");
-  K s2=ks("ciao");
-  O("%p\n",s1->s);
-  O("%p\n",s2->s);
+  K s1=r1(r1(ks("ciao")));
+  K s2=r1(ks("ciao"));
+  K x=r1(ktn(0,0));
+  jk(&x, s1);
+  r0(s1);
+  r0(x);
 }
