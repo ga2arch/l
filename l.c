@@ -7,6 +7,7 @@
 int debug=1;
 
 //buddy
+#define EXP2(n)       (LOG2(np2((n))))
 #define LV(s,ts)      (LOG2(ts/np2((s))))
 #define BL(lv)        (1<<(lv))
 #define SLV(lv,ts)    ((ts)/BL(lv))
@@ -55,8 +56,9 @@ K sspool;
 ZV* ma(L s) {V* v=ba(s);R v;}
 ZV* ra(V* p, L os, L ns) {V* n=ma(ns);memmove(n,p,os);bf(p,os);R n;}
 ZK r1(K x) {xr++;R x;}
-ZK ga(L s) {R r1(ma(sizeof(struct k0)-1+s));}
-ZK rga(K x, L n) {R ra(x, sizeof(struct k0)-1+xn*sz(xt),sizeof(struct k0)-1+sz(xt)*n);}
+ZK ga(L s) {L size=sizeof(struct k0)-1+s;K x=r1(ma(size));x->m=EXP2(size);R x;}
+ZK rga(K x, L n) {L os,ns,exp;K z;
+  os=sizeof(struct k0)-1+xn*sz(xt),ns=sizeof(struct k0)-1+sz(xt)*n,exp=EXP2(ns);$(exp>x->m,z=r1(ra(x,os,ns)),R x);z->m=exp; R z;}
 ZV gf(K x) {L s=sizeof(struct k0)-1;if(xt<1)s+=xn*sz(xt);bf(x,s);}
 ZK r0(K x) {xr--;if(xr==0)$(xt!=0,gf(x),DO(xn,r0(xK[i]);R 0;));R x;}
 
@@ -268,10 +270,8 @@ V repl() {C str[8000]={0};
 }
 
 I main() {init();repl();
-  K s1=kp("2+2\n");
-  s1->n--;
-  js(&s1,";");
+  K s1=kp("2+2+\n");
+  js(&s1,";12");
   r0(s1);
-  K s2=kp("2+2");
-  r0(s2);
+
 }
