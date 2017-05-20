@@ -8,32 +8,32 @@ int debug=1;
 
 //buddy
 #define EXP2(n)       (LOG2(np2((n))))
-#define LV(s,ts)      (LOG2(ts/np2((s))))
-#define BL(lv)        (1<<(lv))
-#define SLV(lv,ts)    ((ts)/BL(lv))
+#define LV(s,ts)      (ts-((s)))
+#define BL(lv)        ((lv))
+#define SLV(lv,ts)    ((1UL)<<((ts)-(lv)))
 #define IX(p,lv,m,ts) (((p)-(m))/(SLV(lv,ts)))
 
 typedef struct b0 {struct b0* n;} *B;
 typedef struct bl0 {struct bl0* p;struct bl0* n;} *BL;
-L SIZE=(1UL<<20)*2; // 1mb
+L SIZE_EXP2=9; // 1mb
 V* mem;
 V* lvs[32]={NULL};
 B* bs[32]={NULL};
 
 ZL np2(L v){v--;v|=v>>1;v|=v>>2;v|=v>>4;v|=v>>8;v|=v>>16;v|=v>>32;v++;R v;}
-ZV binit() {posix_memalign(&mem,16,SIZE);lvs[0]=mem,((BL)lvs[0])->p=((BL)lvs[0])->n=NULL;}
+ZV binit() {posix_memalign(&mem,16,((1UL)<<SIZE_EXP2));lvs[0]=mem,((BL)lvs[0])->p=((BL)lvs[0])->n=NULL;}
 ZV* bal(L lv) {BL bl;
   if(lv==0&&lvs[lv]==NULL){O("out of memory\n");R 0;}
-  if(lvs[lv]==NULL) {V* m;BL r;m=bal(lv-1),r=(BL)((G*)m+SLV(lv,SIZE));r->n=r->p=NULL,lvs[lv]=r;R m;}
+  if(lvs[lv]==NULL) {V* m;BL r;m=bal(lv-1),r=(BL)((G*)m+SLV(lv,SIZE_EXP2));r->n=r->p=NULL,lvs[lv]=r;R m;}
   bl=(BL)lvs[lv];
-  LO("allocate: lv:%llu - ix:%llu - p:%p - pn:%p - pp:%p\n",lv,IX((V*)bl,lv,mem,SIZE),bl,bl->n,bl->p);
+  LO("allocate: lv:%llu - ix:%llu - p:%p - pn:%p - pp:%p\n",lv,IX((V*)bl,lv,mem,SIZE_EXP2),bl,bl->n,bl->p);
   if(bl->n)lvs[lv]=bl->n,((BL)lvs[lv])->p=NULL;
   else lvs[lv]=NULL;
   R bl;
 }
-ZV* ba(L s) {LO("requested:%llu - %llu\n",s,LV(s,SIZE));R bal(LV(s,SIZE));}
+ZV* ba(L s) {LO("requested:%llu - %llu\n",s,LV(s,SIZE_EXP2));R bal(LV(EXP2(s),SIZE_EXP2));}
 ZV bfl(V* p,L lv) {L ix,size;G* buddy;BL tmp,bl;I found=0;
-  ix=IX(p,lv,mem,SIZE),size=SLV(lv,SIZE);
+  ix=IX(p,lv,mem,SIZE_EXP2),size=SLV(lv,SIZE_EXP2);
   LO("freeing lv:%llu - ix:%llu - p:%p\n",lv,ix,p);
   $((ix&1)==0, buddy=(G*)p+size, buddy=(G*)p-size);tmp=lvs[lv];
   while(tmp) {found=(G*)tmp==buddy;if(tmp->n==NULL)break;tmp=tmp->n;}
@@ -45,7 +45,7 @@ ZV bfl(V* p,L lv) {L ix,size;G* buddy;BL tmp,bl;I found=0;
   $(tmp, tmp->n=bl, lvs[lv]=bl);
   LO("tmp:%p - p:%p - pn:%p - pp:%p\n",tmp,lvs[lv],((BL)lvs[lv])->n,((BL)lvs[lv])->p);
 }
-ZV bf(V* p,L s) {bfl(p,LV(s,SIZE));}
+ZV bf(V* p,L s) {bfl(p,9-s);}
 
 //toolkit
 I sizes[10] = {sizeof(G*),sizeof(C),sizeof(G),sizeof(H),sizeof(I),sizeof(J),sizeof(E),sizeof(F),sizeof(C),sizeof(S)};
@@ -59,8 +59,8 @@ ZK r1(K x) {xr++;R x;}
 ZK ga(L s) {L size=sizeof(struct k0)-1+s;K x=r1(ma(size));x->m=EXP2(size);R x;}
 ZK rga(K x, L n) {L os,ns,exp;K z;
   os=sizeof(struct k0)-1+xn*sz(xt),ns=sizeof(struct k0)-1+sz(xt)*n,exp=EXP2(ns);$(exp>x->m,z=r1(ra(x,os,ns)),R x);z->m=exp; R z;}
-ZV gf(K x) {L s=sizeof(struct k0)-1;if(xt<1)s+=xn*sz(xt);bf(x,s);}
-ZK r0(K x) {xr--;if(xr==0)$(xt!=0,gf(x),DO(xn,r0(xK[i]);R 0;));R x;}
+ZV gf(K x) {bf(x,x->m);}
+ZK r0(K x) {U(xr);xr--;if(xr==0){if(xt==0)DO(xn,r0(xK[i]));gf(x);R 0;};R x;}
 
 //atoms
 ZK ka(I t) {K x=ga(0);xt=t;R x;}
@@ -71,7 +71,7 @@ ZK ki(I i) {K x=ka(-KI);x->i=i;R x;}
 ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n);xt=t,xn=n;R x;};
 ZK ja(K* x, V* y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],y,sz((*x)->t));(*x)->n++;R *x;}
 ZK js(K* x, S s) {I n=strlen(s);*x=rga(*x,(*x)->n+n);memcpy(&kG(*x)[(*x)->n],s,n);(*x)->n+=n;R *x;}
-ZK jk(K* x, K y) {*x=rga(*x,(*x)->n+1);kK(*x)[(*x)->n]=r1(y);(*x)->n++;R *x;}
+ZK jk(K* x, K y) {r1(y);*x=rga(*x,(*x)->n+1);kK(*x)[(*x)->n]=r1(y);(*x)->n++;R *x;}
 ZK jv(K* x, K y) {U((*x)->t==y->t);I n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(*x)[n],&kG(y),y->n*sz(y->t));(*x)->n=n+y->n;R *x;}
 
 //tables
@@ -86,7 +86,9 @@ ZS ss(S s) {K sym;DO(sspool->n, sym=kK(sspool)[i];P(strncmp((S)kG(sym),s,sym->n)
 //symbols
 ZK ks(S s) {K x=ka(-KS);x->s=ss(s);R x;}
 ZV sinit() {sspool=ktn(0,0);}
-//
+
+//kqueue/epoll
+
 
 //parser
 #define SB         0    /* blank                           */
@@ -136,8 +138,11 @@ K wordil(K x) {I i=0,s=0,e=0,b=0,ix=0;ST st;K ixs;K bs;
     if (e==EI) {kI(ixs)[ix]=b, kI(ixs)[ix+1]=i-1, b=i, ix+=2;}
     else if (e==EN) b=i;
     LO("i:%i - state: %i - effect:%i - b:%i - ix:%i - c:%c - %i\n",i,s,e,b,ix,xG[i],ctype[xG[i]]);
-    if(s==SO&&SEMICOLON==xG[i]){LO("found ; adding block\n");ixs->n=ix;jk(&bs,ixs);ixs=ktn(KI,xn*2);ix=0;}
+    if(s==SO&&SEMICOLON==xG[i]){LO("found ; adding block\n");ixs->n=ix;jk(&bs,ixs);r0(ixs);ixs=ktn(KI,xn*2);ix=0;}
   }
+  r0(ixs);
+  O("here:");
+  DO(bs->n, K ixs=kK(bs)[i];DO(ixs->n, LO("%i",kI(ixs)[i]))LO("\n"););
   R bs;
 }
 
@@ -176,8 +181,8 @@ K2(negate) {P(abs(xt)==KI, negateII(x));R 0;}
 K2(mul1) {P(abs(xt)==KI, headII(x));R 0;}
 
 K2(intf) {LO("intf:%i\n",abs(x->i));K ls=ktn(KI,abs(x->i));I sign=SIGN(x->i);DO(abs(x->i), kI(ls)[i]=(i*sign));R ls;}
-K3(dyad) {LO("dyad: %c\n",y->g);PV* v=&pst[y->g];R (*v->f2)(x,z);}
-K3(monad) {LO("monad: %c\n",x->g);PV* v=&pst[x->g];R (*v->f1)(z);}
+K3(dyad) {LO("dyad: %c\n",y->g);PV* v=&pst[y->g];K r=(*v->f2)(x,z);r0(x);r0(y);r0(z);R r;}
+K3(monad) {LO("monad: %c\n",x->g);PV* v=&pst[x->g];K r=(*v->f1)(z);r0(z);R r;}
 K3(is)   {Os(x);LO(" is %i\n", z->i);R 0;}
 
 Z C spell[]={
@@ -236,9 +241,10 @@ K enqueue(K s, K bs) {K res=ktn(0,0);
         if(ret&&i==1)for(;top<4;top++)stack[top].t=MARK,stack[top].e=kp(";");
       } while (i==1&&ret);
     }
-    r0(ixs);
     jk(&res,stack[0].e);
+    DO(top, r0(stack[i].e))
   }
+  r0(bs);
   r0(s);
   R res;
 }
@@ -257,7 +263,7 @@ V init() {
 
   binit();
   sinit();
-  O("allocated %llu\n",SIZE);
+  O("allocated %llu\n",SIZE_EXP2);
 }
 
 V repl() {C str[8000]={0};
