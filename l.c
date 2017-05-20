@@ -25,26 +25,16 @@ ZV binit() {posix_memalign(&mem,16,((1UL)<<SIZE_EXP2));lvs[0]=mem,((BL)lvs[0])->
 ZV* bal(L lv) {BL bl;
   if(lv==0&&lvs[lv]==NULL){O("out of memory\n");R 0;}
   if(lvs[lv]==NULL) {V* m;BL r;m=bal(lv-1),r=(BL)((G*)m+SLV(lv,SIZE_EXP2));r->n=r->p=NULL,lvs[lv]=r;R m;}
-  bl=(BL)lvs[lv];
-  LO("allocate: lv:%llu - ix:%llu - p:%p - pn:%p - pp:%p\n",lv,IX((V*)bl,lv,mem,SIZE_EXP2),bl,bl->n,bl->p);
-  if(bl->n)lvs[lv]=bl->n,((BL)lvs[lv])->p=NULL;
-  else lvs[lv]=NULL;
-  R bl;
-}
+  bl=(BL)lvs[lv];if(bl->n)lvs[lv]=bl->n,((BL)lvs[lv])->p=NULL;else lvs[lv]=NULL;R bl;}
+
 ZV* ba(C exp) {LO("requested:%llu - %llu\n",(1UL<<exp),LV(exp,SIZE_EXP2));R bal(LV(exp,SIZE_EXP2));}
 ZV bfl(V* p,L lv) {L ix,size;G* buddy;BL tmp,bl;I found=0;
-  ix=IX(p,lv,mem,SIZE_EXP2),size=SLV(lv,SIZE_EXP2);
-  LO("freeing lv:%llu - ix:%llu - p:%p\n",lv,ix,p);
-  $((ix&1)==0, buddy=(G*)p+size, buddy=(G*)p-size);tmp=lvs[lv];
+  ix=IX(p,lv,mem,SIZE_EXP2),size=SLV(lv,SIZE_EXP2);$((ix&1)==0, buddy=(G*)p+size, buddy=(G*)p-size);tmp=lvs[lv];
   while(tmp) {found=(G*)tmp==buddy;if(found||tmp->n==NULL)break;tmp=tmp->n;}
   if(found) {BL prev,next;
-    bl=(BL)buddy,prev=bl->p,next=bl->n;
-    if(prev) prev->n=next;if(next) next->p=prev;if(!prev)lvs[lv]=next;
-    LO("buddy:%p - lv:%p - p:%p - pn:%p - pp:%p\n",buddy,lvs[lv],p,next,prev);
+    bl=(BL)buddy,prev=bl->p,next=bl->n;if(prev)prev->n=next;if(next)next->p=prev;if(!prev)lvs[lv]=next;
     $((ix&1)==0,bfl(p, lv-1),bfl(buddy,lv-1));}
-  else {bl=(BL)p,bl->p=tmp,bl->n=NULL;$(tmp, tmp->n=bl, lvs[lv]=bl);
-    LO("tmp:%p - lv:%p - p:%p - pn:%p - pp:%p\n",tmp,lvs[lv],p,bl->n,bl->p);}
-}
+  else {bl=(BL)p,bl->p=tmp,bl->n=NULL;$(tmp, tmp->n=bl, lvs[lv]=bl);}}
 ZV bf(V* p,L s) {bfl(p,LV(s,SIZE_EXP2));}
 
 //toolkit
