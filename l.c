@@ -11,11 +11,11 @@ int debug=1;
 #define LV(s,ts)      (ts-((s)))
 #define BL(lv)        ((lv))
 #define SLV(lv,ts)    ((1UL)<<((ts)-(lv)))
-#define IX(p,lv,m,ts) (((p)-(m))/(SLV(lv,ts)))
+#define IX(p,lv,m,ts) (((G*)(p)-(G*)(m))/(SLV(lv,ts)))
 
 typedef struct b0 {struct b0* n;} *B;
 typedef struct bl0 {struct bl0* p;struct bl0* n;} *BL;
-L SIZE_EXP2=9; // 1mb
+#define SIZE_EXP2 9UL // 1mb
 V* mem;
 V* lvs[32]={NULL};
 B* bs[32]={NULL};
@@ -31,21 +31,21 @@ ZV* bal(L lv) {BL bl;
   else lvs[lv]=NULL;
   R bl;
 }
-ZV* ba(L s) {LO("requested:%llu - %llu\n",s,LV(s,SIZE_EXP2));R bal(LV(EXP2(s),SIZE_EXP2));}
+ZV* ba(C exp) {LO("requested:%llu - %llu\n",(1UL<<exp),LV(exp,SIZE_EXP2));R bal(LV(exp,SIZE_EXP2));}
 ZV bfl(V* p,L lv) {L ix,size;G* buddy;BL tmp,bl;I found=0;
   ix=IX(p,lv,mem,SIZE_EXP2),size=SLV(lv,SIZE_EXP2);
   LO("freeing lv:%llu - ix:%llu - p:%p\n",lv,ix,p);
   $((ix&1)==0, buddy=(G*)p+size, buddy=(G*)p-size);tmp=lvs[lv];
-  while(tmp) {found=(G*)tmp==buddy;if(tmp->n==NULL)break;tmp=tmp->n;}
-  if(found) {LO("found buddy\n");BL prev,next;
+  while(tmp) {found=(G*)tmp==buddy;if(found||tmp->n==NULL)break;tmp=tmp->n;}
+  if(found) {BL prev,next;
     bl=(BL)buddy,prev=bl->p,next=bl->n;
-    if(prev) prev->n=next;if(next) next->p=prev;if(!prev&&!next) lvs[lv]=NULL;
-    $((ix&1)==0,bfl(p, lv-1),bfl(buddy,lv-1));R;}
-  bl=(BL)p,bl->p=tmp,bl->n=NULL;
-  $(tmp, tmp->n=bl, lvs[lv]=bl);
-  LO("tmp:%p - p:%p - pn:%p - pp:%p\n",tmp,lvs[lv],((BL)lvs[lv])->n,((BL)lvs[lv])->p);
+    if(prev) prev->n=next;if(next) next->p=prev;if(!prev)lvs[lv]=next;
+    LO("buddy:%p - lv:%p - p:%p - pn:%p - pp:%p\n",buddy,lvs[lv],p,next,prev);
+    $((ix&1)==0,bfl(p, lv-1),bfl(buddy,lv-1));}
+  else {bl=(BL)p,bl->p=tmp,bl->n=NULL;$(tmp, tmp->n=bl, lvs[lv]=bl);
+    LO("tmp:%p - lv:%p - p:%p - pn:%p - pp:%p\n",tmp,lvs[lv],p,bl->n,bl->p);}
 }
-ZV bf(V* p,L s) {bfl(p,9-s);}
+ZV bf(V* p,L s) {bfl(p,LV(s,SIZE_EXP2));}
 
 //toolkit
 I sizes[10] = {sizeof(G*),sizeof(C),sizeof(G),sizeof(H),sizeof(I),sizeof(J),sizeof(E),sizeof(F),sizeof(C),sizeof(S)};
@@ -53,12 +53,12 @@ ZI sz(I t) {R sizes[abs(t)];}
 K sspool;
 
 //memory
-ZV* ma(L s) {V* v=ba(s);R v;}
-ZV* ra(V* p, L os, L ns) {V* n=ma(ns);memmove(n,p,os);bf(p,os);R n;}
-ZK r1(K x) {xr++;R x;}
-ZK ga(L s) {L size=sizeof(struct k0)-1+s;K x=r1(ma(size));x->m=EXP2(size);R x;}
-ZK rga(K x, L n) {L os,ns,exp;K z;
-  os=sizeof(struct k0)-1+xn*sz(xt),ns=sizeof(struct k0)-1+sz(xt)*n,exp=EXP2(ns);$(exp>x->m,z=r1(ra(x,os,ns)),R x);z->m=exp; R z;}
+ZV* ma(C s) {V* v=ba(s);R v;}
+ZV* ra(V* p, C os, C ns) {V* n=ma(ns);memmove(n,p,(1UL)<<os);bf(p,os);R n;}
+
+ZK r1(K x) {xr+=1;R x;}
+ZK ga(L s) {C exp;K x;exp=EXP2(sizeof(struct k0)-1+s),x=r1(ma(exp)),x->m=exp;R x;}
+ZK rga(K x, L n) {C exp;K z;exp=EXP2(sizeof(struct k0)-1+sz(xt)*n);$(exp>x->m,z=ra(x,x->m,exp),R x);z->m=exp; R z;}
 ZV gf(K x) {bf(x,x->m);}
 ZK r0(K x) {U(xr);xr--;if(xr==0){if(xt==0)DO(xn,r0(xK[i]));gf(x);R 0;};R x;}
 
@@ -71,7 +71,7 @@ ZK ki(I i) {K x=ka(-KI);x->i=i;R x;}
 ZK ktn(I t, L n) {K x;U(t>=0&&t<10);x=ga(sz(t)*n);xt=t,xn=n;R x;};
 ZK ja(K* x, V* y) {*x=rga(*x,(*x)->n+1);memcpy(&kK(*x)[(*x)->n],y,sz((*x)->t));(*x)->n++;R *x;}
 ZK js(K* x, S s) {I n=strlen(s);*x=rga(*x,(*x)->n+n);memcpy(&kG(*x)[(*x)->n],s,n);(*x)->n+=n;R *x;}
-ZK jk(K* x, K y) {r1(y);*x=rga(*x,(*x)->n+1);kK(*x)[(*x)->n]=r1(y);(*x)->n++;R *x;}
+ZK jk(K* x, K y) {*x=rga(*x,(*x)->n+1);kK(*x)[(*x)->n]=r1(y);(*x)->n++;R *x;}
 ZK jv(K* x, K y) {U((*x)->t==y->t);I n=(*x)->n;*x=rga(*x,n+y->n);memcpy(&kK(*x)[n],&kG(y),y->n*sz(y->t));(*x)->n=n+y->n;R *x;}
 
 //tables
@@ -141,8 +141,6 @@ K wordil(K x) {I i=0,s=0,e=0,b=0,ix=0;ST st;K ixs;K bs;
     if(s==SO&&SEMICOLON==xG[i]){LO("found ; adding block\n");ixs->n=ix;jk(&bs,ixs);r0(ixs);ixs=ktn(KI,xn*2);ix=0;}
   }
   r0(ixs);
-  O("here:");
-  DO(bs->n, K ixs=kK(bs)[i];DO(ixs->n, LO("%i",kI(ixs)[i]))LO("\n"););
   R bs;
 }
 
@@ -244,8 +242,7 @@ K enqueue(K s, K bs) {K res=ktn(0,0);
     jk(&res,stack[0].e);
     DO(top, r0(stack[i].e))
   }
-  r0(bs);
-  r0(s);
+  r0(bs);r0(s);
   R res;
 }
 
