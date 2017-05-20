@@ -4,18 +4,18 @@
 #include <sys/mman.h>
 #include <math.h>
 #include "l.h"
-int debug=1;
+int debug=0;
 
 //buddy
 #define EXP2(n)       (LOG2(np2((n))))
 #define LV(s,ts)      (ts-((s)))
 #define BL(lv)        ((lv))
-#define SLV(lv,ts)    ((1UL)<<((ts)-(lv)))
+#define SLV(lv,ts)    ((1ULL)<<((ts)-(lv)))
 #define IX(p,lv,m,ts) (((G*)(p)-(G*)(m))/(SLV(lv,ts)))
 
 typedef struct b0 {struct b0* n;} *B;
 typedef struct bl0 {struct bl0* p;struct bl0* n;} *BL;
-#define SIZE_EXP2 9UL // 1mb
+#define SIZE_EXP2 (20ULL)
 V* mem;
 V* lvs[32]={NULL};
 B* bs[32]={NULL};
@@ -27,7 +27,7 @@ ZV* bal(L lv) {BL bl;
   if(lvs[lv]==NULL) {V* m;BL r;m=bal(lv-1),r=(BL)((G*)m+SLV(lv,SIZE_EXP2));r->n=r->p=NULL,lvs[lv]=r;R m;}
   bl=(BL)lvs[lv];if(bl->n)lvs[lv]=bl->n,((BL)lvs[lv])->p=NULL;else lvs[lv]=NULL;R bl;}
 
-ZV* ba(C exp) {LO("requested:%llu - %llu\n",(1UL<<exp),LV(exp,SIZE_EXP2));R bal(LV(exp,SIZE_EXP2));}
+ZV* ba(C exp) {LO("requested:%llu - %llu\n",((1ULL)<<exp),LV(exp,SIZE_EXP2));R bal(LV(exp,SIZE_EXP2));}
 ZV bfl(V* p,L lv) {L ix,size;G* buddy;BL tmp,bl;I found=0;
   ix=IX(p,lv,mem,SIZE_EXP2),size=SLV(lv,SIZE_EXP2);$((ix&1)==0, buddy=(G*)p+size, buddy=(G*)p-size);tmp=lvs[lv];
   while(tmp) {found=(G*)tmp==buddy;if(found||tmp->n==NULL)break;tmp=tmp->n;}
@@ -250,7 +250,7 @@ V init() {
 
   binit();
   sinit();
-  O("allocated %llu\n",SIZE_EXP2);
+  O("allocated %llu\n",(1ULL)<<SIZE_EXP2);
 }
 
 V repl() {C str[8000]={0};
