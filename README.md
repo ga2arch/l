@@ -1,5 +1,7 @@
 # l
 
+DISCLAIMER: implementation will look like total madness, it's the J/K/APL way frate.
+
 Simple array language, right now the idea is to provide an implementation
 of k6 http://kparc.com/k.txt.
 
