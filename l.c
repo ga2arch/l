@@ -6,6 +6,15 @@
 #include "l.h"
 int debug=0;
 
+//toolkit
+ZK ga(L s);
+ZS ss(S s);
+
+//errors
+#define UE(x) {U(x);if(xt==-128); R x;}
+ZK krr(S err) {K x=ga(0);xt=-128;x->s=ss(err);R x;}
+//ZK orr(S err) {K x=ga(0);xt=-128;x->s=ss(err);R x;}
+
 //buddy
 #define EXP2(n)       (LOG2(np2((n))))
 #define LV(s,ts)      (ts-((s)))
@@ -13,38 +22,50 @@ int debug=0;
 #define SLV(lv,ts)    ((1ULL)<<((ts)-(lv)))
 #define IX(p,lv,m,ts) (((G*)(p)-(G*)(m))/(SLV(lv,ts)))
 
+L SIZE_EXP2=20ULL;
+#define SIZE ((1ULL)<<SIZE_EXP2)
+
 typedef struct b0 {struct b0* n;} *B;
 typedef struct bl0 {struct bl0* p;struct bl0* n;} *BL;
-#define SIZE_EXP2 (20ULL)
 V* mem;
-V* lvs[32]={NULL};
-B* bs[32]={NULL};
+L boff=32;
+J lvs[320];
+
+V* pa(L s) {V *x;
+  x=mmap(0,s,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE,-1,0);P(x!=MAP_FAILED,x);O("out of memory1");R 0;}
+V pr(){V* x;
+  x=mmap((G*)mem+SIZE,SIZE,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE|MAP_FIXED,-1,0);
+  $(x!=MAP_FAILED, SIZE_EXP2+=1, O("out of memory2"));}
+
+ZV bsl(L lv,V* p) {$(p==NULL, lvs[boff+lv]=-1, lvs[boff+lv]=(G*)p-(G*)mem);}
+Z BL bgl(L lv) {J o=lvs[boff+lv]; if(o==-1)R NULL;R (BL)((G*)mem+o);}
 
 ZL np2(L v){v--;v|=v>>1;v|=v>>2;v|=v>>4;v|=v>>8;v|=v>>16;v|=v>>32;v++;R v;}
-ZV binit() {posix_memalign(&mem,16,((1UL)<<SIZE_EXP2));lvs[0]=mem,((BL)lvs[0])->p=((BL)lvs[0])->n=NULL;}
+ZV binit() {DO(320,lvs[i]=-1);mem=pa(SIZE);bsl(0,mem);bgl(0)->p=bgl(0)->n=NULL;}
+ZV* baddl() {boff--;pr();R (G*)mem+SLV(1,SIZE_EXP2);}
 ZV* bal(L lv) {BL bl;
-  if(lv==0&&lvs[lv]==NULL){O("out of memory\n");R 0;}
-  if(lvs[lv]==NULL) {V* m;BL r;m=bal(lv-1),r=(BL)((G*)m+SLV(lv,SIZE_EXP2));r->n=r->p=NULL,lvs[lv]=r;R m;}
-  bl=(BL)lvs[lv];if(bl->n)lvs[lv]=bl->n,((BL)lvs[lv])->p=NULL;else lvs[lv]=NULL;R bl;}
-
+  //  if(lv<0){pr();if(bgl(0)==NULL)bsl(0, (G*)mem+os);else
+  if(lv==0&&bgl(lv)==NULL){O("out of memory3\n");R 0;}
+  if(bgl(lv)==NULL) {V* m;BL r;m=bal(lv-1),r=(BL)((G*)m+SLV(lv,SIZE_EXP2));r->n=r->p=NULL,bsl(lv,r);R m;}
+  bl=bgl(lv);if(bl->n){bsl(lv,bl->n);bgl(lv)->p=NULL;}else bsl(lv, NULL);R bl;}
 ZV* ba(C exp) {LO("requested:%llu - %llu\n",((1ULL)<<exp),LV(exp,SIZE_EXP2));R bal(LV(exp,SIZE_EXP2));}
-ZV bfl(V* p,L lv) {L ix,size;G* buddy;BL tmp,bl;I found=0;
-  ix=IX(p,lv,mem,SIZE_EXP2),size=SLV(lv,SIZE_EXP2);$((ix&1)==0, buddy=(G*)p+size, buddy=(G*)p-size);tmp=lvs[lv];
+ZV bfl(V* p,L lv) {L ix,size;G* buddy;BL tmp,bl;H found=0;
+  ix=IX(p,lv,mem,SIZE_EXP2),size=SLV(lv,SIZE_EXP2);$((ix&1)==0, buddy=(G*)p+size, buddy=(G*)p-size);tmp=bgl(lv);
   while(tmp) {found=(G*)tmp==buddy;if(found||tmp->n==NULL)break;tmp=tmp->n;}
   if(found) {BL prev,next;
-    bl=(BL)buddy,prev=bl->p,next=bl->n;if(prev)prev->n=next;if(next)next->p=prev;if(!prev)lvs[lv]=next;
+    bl=(BL)buddy,prev=bl->p,next=bl->n;if(prev)prev->n=next;if(next)next->p=prev;if(!prev)bsl(lv,next);
     $((ix&1)==0,bfl(p, lv-1),bfl(buddy,lv-1));}
-  else {bl=(BL)p,bl->p=tmp,bl->n=NULL;$(tmp, tmp->n=bl, lvs[lv]=bl);}}
+  else {bl=(BL)p,bl->p=tmp,bl->n=NULL;$(tmp, tmp->n=bl, bsl(lv,bl));}}
 ZV bf(V* p,L s) {bfl(p,LV(s,SIZE_EXP2));}
 
-//toolkit
+//
 I sizes[10] = {sizeof(G*),sizeof(C),sizeof(G),sizeof(H),sizeof(I),sizeof(J),sizeof(E),sizeof(F),sizeof(C),sizeof(S)};
 ZI sz(I t) {R sizes[abs(t)];}
-K sspool;
+K syms;
 
 //memory
 ZV* ma(C s) {V* v=ba(s);R v;}
-ZV* ra(V* p, C os, C ns) {V* n=ma(ns);memmove(n,p,(1UL)<<os);bf(p,os);R n;}
+ZV* ra(V* p, C os, C ns) {V* n=ma(ns);memmove(n,p,(1ULL)<<os);bf(p,os);R n;}
 
 ZK r1(K x) {xr+=1;R x;}
 ZK ga(L s) {C exp;K x;exp=EXP2(sizeof(struct k0)-1+s),x=r1(ma(exp)),x->m=exp;R x;}
@@ -71,11 +92,11 @@ K xT(K d) {U(d->t==XT);K x=ga(0);xt=XT;xk=d;R x;}
 //strings
 ZK kpn(S s, I n) {K x=ktn(KC,n);memcpy((S)xG,s,n);R x;}
 ZK kp(S s) {R kpn(s,strlen(s));}
-ZS ss(S s) {K sym;DO(sspool->n, sym=kK(sspool)[i];P(strncmp((S)kG(sym),s,sym->n)==0,(S)kG(sym)));sym=kp(s);jk(&sspool,sym);R (S)kG(sym);}
+ZS ss(S s) {K sym;DO(syms->n, sym=kK(syms)[i];P(strncmp((S)kG(sym),s,sym->n)==0,(S)kG(sym)));sym=kp(s);jk(&syms,sym);R (S)kG(sym);}
 
 //symbols
 ZK ks(S s) {K x=ka(-KS);x->s=ss(s);R x;}
-ZV sinit() {sspool=ktn(0,0);}
+ZV sinit() {syms=ktn(0,0);}
 
 //kqueue/epoll
 
