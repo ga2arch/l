@@ -4,7 +4,7 @@
 #include <sys/mman.h>
 #include <math.h>
 #include "l.h"
-int debug=0;
+int debug=1;
 
 //toolkit
 ZK ga(L s);
@@ -26,36 +26,39 @@ L SIZE_EXP2=20ULL;
 #define SIZE ((1ULL)<<SIZE_EXP2)
 
 typedef struct b0 {struct b0* n;} *B;
-typedef struct bl0 {struct bl0* p;struct bl0* n;} *BL;
+typedef struct bl0 {J p;J n;} *BL;
 V* mem;
 L boff=32;
 J lvs[320];
 
-V* pa(L s) {V *x;
-  x=mmap(0,s,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE,-1,0);P(x!=MAP_FAILED,x);O("out of memory1");R 0;}
-V pr(){V* x;
-  x=mmap((G*)mem+SIZE,SIZE,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE|MAP_FIXED,-1,0);
-  $(x!=MAP_FAILED, SIZE_EXP2+=1, O("out of memory2"));}
+V* pa(L s) {V *x=mmap(0,s,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE,-1,0);P(x!=MAP_FAILED,x);O("out of memory1");R 0;}
 
-ZV bsl(L lv,V* p) {$(p==NULL, lvs[boff+lv]=-1, lvs[boff+lv]=(G*)p-(G*)mem);}
-Z BL bgl(L lv) {J o=lvs[boff+lv]; if(o==-1)R NULL;R (BL)((G*)mem+o);}
+ZV bsl(I lv,V* p) {$(p==NULL, lvs[boff+lv]=-1, lvs[boff+lv]=(G*)p-(G*)mem);}
+Z BL bgl(I lv) {J o=lvs[boff+lv]; if(o==-1)R NULL;R (BL)((G*)mem+o);}
+ZJ p2o(V* p) {if(p==NULL)R -1;R (G*)p-(G*)mem;}
+Z BL o2p(J o) {if(o==-1)R NULL;R (BL)((G*)mem+o);}
 
 ZL np2(L v){v--;v|=v>>1;v|=v>>2;v|=v>>4;v|=v>>8;v|=v>>16;v|=v>>32;v++;R v;}
-ZV binit() {DO(320,lvs[i]=-1);mem=pa(SIZE);bsl(0,mem);bgl(0)->p=bgl(0)->n=NULL;}
-ZV* baddl() {boff--;pr();R (G*)mem+SLV(1,SIZE_EXP2);}
-ZV* bal(L lv) {BL bl;
-  //  if(lv<0){pr();if(bgl(0)==NULL)bsl(0, (G*)mem+os);else
-  if(lv==0&&bgl(lv)==NULL){O("out of memory3\n");R 0;}
-  if(bgl(lv)==NULL) {V* m;BL r;m=bal(lv-1),r=(BL)((G*)m+SLV(lv,SIZE_EXP2));r->n=r->p=NULL,bsl(lv,r);R m;}
-  bl=bgl(lv);if(bl->n){bsl(lv,bl->n);bgl(lv)->p=NULL;}else bsl(lv, NULL);R bl;}
+ZV binit() {DO(320,lvs[i]=-1);mem=malloc(SIZE);bsl(0,mem);bgl(0)->p=bgl(0)->n=-1;}
+ZV* baddl(I n) {boff-=n;SIZE_EXP2+=n;mem=realloc(mem,SIZE);R (G*)mem+SLV(1,SIZE_EXP2);}
+ZV* bal(I lv) {BL bl;
+  if(lv<0){O("out of memory4 - %i\n",lv);R baddl(-lv+1);}
+  if(lv==0&&bgl(lv)==NULL){O("out of memory3\n");R baddl(1);}
+  if(bgl(lv)==NULL) {V* m;BL r;m=bal(lv-1),r=(BL)((G*)m+SLV(lv,SIZE_EXP2));r->n=r->p=-1,bsl(lv,r);R m;}
+  bl=bgl(lv);
+  LO("allocate: lv:%llu - ix:%llu - p:%p - pn:%p - pp:%p\n",lv,IX((V*)bl,lv,mem,SIZE_EXP2),bl,o2p(bl->n),o2p(bl->p));
+  if(o2p(bl->n)){bsl(lv,o2p(bl->n));bgl(lv)->p=-1;}else bsl(lv, NULL);R bl;}
 ZV* ba(C exp) {LO("requested:%llu - %llu\n",((1ULL)<<exp),LV(exp,SIZE_EXP2));R bal(LV(exp,SIZE_EXP2));}
-ZV bfl(V* p,L lv) {L ix,size;G* buddy;BL tmp,bl;H found=0;
+ZV bfl(V* p,I lv) {L ix,size;G* buddy;BL tmp,bl;H found=0;
   ix=IX(p,lv,mem,SIZE_EXP2),size=SLV(lv,SIZE_EXP2);$((ix&1)==0, buddy=(G*)p+size, buddy=(G*)p-size);tmp=bgl(lv);
-  while(tmp) {found=(G*)tmp==buddy;if(found||tmp->n==NULL)break;tmp=tmp->n;}
+  O("%p\n",p);
+  while(tmp) {found=(G*)tmp==buddy;if(found||tmp->n==-1)break;tmp=o2p(tmp->n);}
   if(found) {BL prev,next;
-    bl=(BL)buddy,prev=bl->p,next=bl->n;if(prev)prev->n=next;if(next)next->p=prev;if(!prev)bsl(lv,next);
+    bl=(BL)buddy,prev=o2p(bl->p),next=o2p(bl->n);if(prev)prev->n=p2o(next);if(next)next->p=p2o(prev);if(!prev)bsl(lv,next);
+    LO("buddy:%p - lv:%p - p:%p - pn:%p - pp:%p\n",buddy,lvs[lv],p,next,prev);
     $((ix&1)==0,bfl(p, lv-1),bfl(buddy,lv-1));}
-  else {bl=(BL)p,bl->p=tmp,bl->n=NULL;$(tmp, tmp->n=bl, bsl(lv,bl));}}
+  else {bl=(BL)p,bl->p=p2o(tmp),bl->n=-1;$(tmp, tmp->n=p2o(bl), bsl(lv,bl));}
+  LO("tmp:%p - lv:%p - p:%p - pn:%p - pp:%p\n",tmp,bgl(lv),p,o2p(bl->n),o2p(bl->p));}
 ZV bf(V* p,L s) {bfl(p,LV(s,SIZE_EXP2));}
 
 //
