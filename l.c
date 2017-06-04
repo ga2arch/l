@@ -13,33 +13,33 @@ int debug=1;
 #define SLV(lv,ts)    ((1ULL)<<((ts)-(lv)))
 #define IX(p,lv,m,ts) (((G*)(p)-(G*)(m))/(SLV(lv,ts)))
 
-typedef struct b0 {struct b0* n;} *B;
+typedef struct bl0 {struct bl0* p;struct bl0* n;} *BL;
 L SIZE_EXP2=8ULL;
 V* mem;
 V* lvs[256]={NULL};
+L loff=32;
 
-V* pa() {R mmap(0,1ULL<<SIZE_EXP2,PROT_WRITE | PROT_READ, MAP_ANON | MAP_PRIVATE,0,0);}
-V  ia() {
-  mmap(mem+(1ULL<<SIZE_EXP2),1ULL<<(SIZE_EXP2++),PROT_WRITE | PROT_READ, MAP_FIXED | MAP_ANON | MAP_PRIVATE,0,0);
-  memmove(&lvs[1],&lvs[0],64*sizeof(lvs[0]));lvs[0]=NULL;}
-
+V* pa() {R mmap(0,1ULL<<SIZE_EXP2,PROT_WRITE|PROT_READ,MAP_ANON|MAP_PRIVATE,0,0);}
+V  ia() {mmap(mem+(1ULL<<SIZE_EXP2),1ULL<<(SIZE_EXP2++),PROT_WRITE|PROT_READ,MAP_FIXED|MAP_ANON|MAP_PRIVATE,0,0);loff--;}
+V  bsl(I lv, V* p) {lvs[loff+lv]=p;}
+BL bgl(I lv) {R (BL)lvs[loff+lv];}
 ZL np2(L v){v--;v|=v>>1;v|=v>>2;v|=v>>4;v|=v>>8;v|=v>>16;v|=v>>32;v++;R v;}
-ZV binit() {mem=pa();lvs[0]=mem,((BL)lvs[0])->p=((BL)lvs[0])->n=NULL;}
+ZV binit() {mem=pa();bsl(0,mem),bgl(0)->p=bgl(0)->n=NULL;}
 ZV* bal(I lv) {BL bl;
   if(lv<0) {DO(-lv+1,ia()); R (G*)mem+SLV(1,SIZE_EXP2);}
-  if(lv==0&&lvs[lv]==NULL){O("out of memory\n");ia();R (G*)mem+SLV(1,SIZE_EXP2);}
-  if(lvs[lv]==NULL) {V* m;BL r;L sz=SIZE_EXP2;
-    m=bal(lv-1),lv+=SIZE_EXP2-sz,r=(BL)((G*)m+SLV(lv,SIZE_EXP2));r->n=r->p=NULL,lvs[lv]=r;R m;}
-  bl=(BL)lvs[lv];if(bl->n)lvs[lv]=bl->n,((BL)lvs[lv])->p=NULL;else lvs[lv]=NULL;R bl;}
+  if(lv==0&&bgl(lv)==NULL){O("out of memory\n");ia();R (G*)mem+SLV(1,SIZE_EXP2);}
+  if(bgl(lv)==NULL) {V* m;BL r;L sz=SIZE_EXP2;
+    m=bal(lv-1),lv+=SIZE_EXP2-sz,r=(BL)((G*)m+SLV(lv,SIZE_EXP2));r->n=r->p=NULL,bsl(lv,r);R m;}
+  bl=bgl(lv);if(bl->n)bsl(lv,bl->n),bgl(lv)->p=NULL;else bsl(lv,NULL);R bl;}
 
 ZV* ba(C exp) {LO("requested:%llu - %i\n",((1ULL)<<exp),LV(exp,SIZE_EXP2));R bal(LV(exp,SIZE_EXP2));}
 ZV bfl(V* p,I lv) {L ix,size;G* buddy;BL tmp,bl;I found=0;
-  ix=IX(p,lv,mem,SIZE_EXP2),size=SLV(lv,SIZE_EXP2);$((ix&1)==0, buddy=(G*)p+size, buddy=(G*)p-size);tmp=lvs[lv];
+  ix=IX(p,lv,mem,SIZE_EXP2),size=SLV(lv,SIZE_EXP2);$((ix&1)==0, buddy=(G*)p+size, buddy=(G*)p-size);tmp=bgl(lv);
   while(tmp) {found=(G*)tmp==buddy;if(found||tmp->n==NULL)break;tmp=tmp->n;}
   if(found) {BL prev,next;
-    bl=(BL)buddy,prev=bl->p,next=bl->n;if(prev)prev->n=next;if(next)next->p=prev;if(!prev)lvs[lv]=next;
+    bl=(BL)buddy,prev=bl->p,next=bl->n;if(prev)prev->n=next;if(next)next->p=prev;if(!prev)bsl(lv,next);
     $((ix&1)==0,bfl(p, lv-1),bfl(buddy,lv-1));}
-  else {bl=(BL)p,bl->p=tmp,bl->n=NULL;$(tmp, tmp->n=bl, lvs[lv]=bl);}}
+  else {bl=(BL)p,bl->p=tmp,bl->n=NULL;$(tmp, tmp->n=bl, bsl(lv,bl));}}
 ZV bf(V* p,L s) {bfl(p,LV(s,SIZE_EXP2));}
 
 //toolkit
