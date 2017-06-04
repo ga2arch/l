@@ -4,7 +4,7 @@
 #include <sys/mman.h>
 #include <math.h>
 #include "l.h"
-int debug=1;
+int debug=0;
 
 //buddy
 #define EXP2(n)       (LOG2(np2((n))))
@@ -20,14 +20,14 @@ V* lvs[256]={NULL};
 L loff=32;
 
 V* pa() {R mmap(0,1ULL<<SIZE_EXP2,PROT_WRITE|PROT_READ,MAP_ANON|MAP_PRIVATE,0,0);}
-V  ia() {mmap(mem+(1ULL<<SIZE_EXP2),1ULL<<(SIZE_EXP2++),PROT_WRITE|PROT_READ,MAP_FIXED|MAP_ANON|MAP_PRIVATE,0,0);loff--;}
+V  ia() {mmap(mem+(1ULL<<SIZE_EXP2),1ULL<<(SIZE_EXP2++),PROT_WRITE|PROT_READ,MAP_FIXED|MAP_ANON|MAP_PRIVATE,0,0);LO("allocated: %llu\n",SLV(0,SIZE_EXP2));loff--;}
 V  bsl(I lv, V* p) {lvs[loff+lv]=p;}
 BL bgl(I lv) {R (BL)lvs[loff+lv];}
 ZL np2(L v){v--;v|=v>>1;v|=v>>2;v|=v>>4;v|=v>>8;v|=v>>16;v|=v>>32;v++;R v;}
 ZV binit() {mem=pa();bsl(0,mem),bgl(0)->p=bgl(0)->n=NULL;}
 ZV* bal(I lv) {BL bl;
   if(lv<0) {DO(-lv+1,ia()); R (G*)mem+SLV(1,SIZE_EXP2);}
-  if(lv==0&&bgl(lv)==NULL){O("out of memory\n");ia();R (G*)mem+SLV(1,SIZE_EXP2);}
+  if(lv==0&&bgl(lv)==NULL){ia();R (G*)mem+SLV(1,SIZE_EXP2);}
   if(bgl(lv)==NULL) {V* m;BL r;L sz=SIZE_EXP2;
     m=bal(lv-1),lv+=SIZE_EXP2-sz,r=(BL)((G*)m+SLV(lv,SIZE_EXP2));r->n=r->p=NULL,bsl(lv,r);R m;}
   bl=bgl(lv);if(bl->n)bsl(lv,bl->n),bgl(lv)->p=NULL;else bsl(lv,NULL);R bl;}
