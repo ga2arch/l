@@ -4,7 +4,7 @@
 #include <sys/mman.h>
 #include <math.h>
 #include "l.h"
-int debug=0;
+int debug=1;
 
 //buddy
 #define EXP2(n)       (LOG2(np2((n))))
@@ -14,21 +14,26 @@ int debug=0;
 #define IX(p,lv,m,ts) (((G*)(p)-(G*)(m))/(SLV(lv,ts)))
 
 typedef struct b0 {struct b0* n;} *B;
-typedef struct bl0 {struct bl0* p;struct bl0* n;} *BL;
-#define SIZE_EXP2 (20ULL)
+L SIZE_EXP2=8ULL;
 V* mem;
-V* lvs[32]={NULL};
-B* bs[32]={NULL};
+V* lvs[256]={NULL};
+
+V* pa() {R mmap(0,1ULL<<SIZE_EXP2,PROT_WRITE | PROT_READ, MAP_ANON | MAP_PRIVATE,0,0);}
+V  ia() {
+  mmap(mem+(1ULL<<SIZE_EXP2),1ULL<<(SIZE_EXP2++),PROT_WRITE | PROT_READ, MAP_FIXED | MAP_ANON | MAP_PRIVATE,0,0);
+  memmove(&lvs[1],&lvs[0],64*sizeof(lvs[0]));lvs[0]=NULL;}
 
 ZL np2(L v){v--;v|=v>>1;v|=v>>2;v|=v>>4;v|=v>>8;v|=v>>16;v|=v>>32;v++;R v;}
-ZV binit() {posix_memalign(&mem,16,((1UL)<<SIZE_EXP2));lvs[0]=mem,((BL)lvs[0])->p=((BL)lvs[0])->n=NULL;}
-ZV* bal(L lv) {BL bl;
-  if(lv==0&&lvs[lv]==NULL){O("out of memory\n");R 0;}
-  if(lvs[lv]==NULL) {V* m;BL r;m=bal(lv-1),r=(BL)((G*)m+SLV(lv,SIZE_EXP2));r->n=r->p=NULL,lvs[lv]=r;R m;}
+ZV binit() {mem=pa();lvs[0]=mem,((BL)lvs[0])->p=((BL)lvs[0])->n=NULL;}
+ZV* bal(I lv) {BL bl;
+  if(lv<0) {DO(-lv+1,ia()); R (G*)mem+SLV(1,SIZE_EXP2);}
+  if(lv==0&&lvs[lv]==NULL){O("out of memory\n");ia();R (G*)mem+SLV(1,SIZE_EXP2);}
+  if(lvs[lv]==NULL) {V* m;BL r;L sz=SIZE_EXP2;
+    m=bal(lv-1),lv+=SIZE_EXP2-sz,r=(BL)((G*)m+SLV(lv,SIZE_EXP2));r->n=r->p=NULL,lvs[lv]=r;R m;}
   bl=(BL)lvs[lv];if(bl->n)lvs[lv]=bl->n,((BL)lvs[lv])->p=NULL;else lvs[lv]=NULL;R bl;}
 
-ZV* ba(C exp) {LO("requested:%llu - %llu\n",((1ULL)<<exp),LV(exp,SIZE_EXP2));R bal(LV(exp,SIZE_EXP2));}
-ZV bfl(V* p,L lv) {L ix,size;G* buddy;BL tmp,bl;I found=0;
+ZV* ba(C exp) {LO("requested:%llu - %i\n",((1ULL)<<exp),LV(exp,SIZE_EXP2));R bal(LV(exp,SIZE_EXP2));}
+ZV bfl(V* p,I lv) {L ix,size;G* buddy;BL tmp,bl;I found=0;
   ix=IX(p,lv,mem,SIZE_EXP2),size=SLV(lv,SIZE_EXP2);$((ix&1)==0, buddy=(G*)p+size, buddy=(G*)p-size);tmp=lvs[lv];
   while(tmp) {found=(G*)tmp==buddy;if(found||tmp->n==NULL)break;tmp=tmp->n;}
   if(found) {BL prev,next;
@@ -266,5 +271,4 @@ I main() {init();repl();
   K s1=kp("2+2+\n");
   js(&s1,";12");
   r0(s1);
-
 }
