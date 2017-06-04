@@ -18,5 +18,5 @@ Try:
 - [ ] Implement verbs
 - [ ] Implement adverbs
 - [ ] Improve logging
-- [ ] Buddy allocator
+- [X] Buddy allocator
 - [ ] Tons of other stuff
